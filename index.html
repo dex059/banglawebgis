@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Informasi Spasial Bangunan dan Instalasi di Laut - Direktorat Jasa Bahari</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 75vh; width: 100%; }
+    body { font-family: sans-serif; padding: 8px; }
+    
+    .legend {
+  position: fixed; /* lebih baik dari absolute untuk responsivitas */
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 1000;
+  background: white;
+  padding: 6px 10px;
+  box-shadow: 0 0 5px rgba(0,0,0,0.3);
+  border-radius: 5px;
+  font-size: 0.75rem;
+  line-height: 1.2rem;
+  max-width: 90vw; /* agar tidak melebar di layar kecil */
+  overflow-wrap: break-word;
+}
+.legend i {
+  width: 14px;
+  height: 14px;
+  float: left;
+  margin-right: 8px;
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+#legend-content {
+  transition: all 0.3s ease;
+}
+    
+  </style>
+
+  
+</head>
+<body>
+
+<h2>Informasi Spasial Direktorat Jasa Bahari</h2>
+
+<form onsubmit="addMarker(); return false;">
+  <label>Lat DD: <input type="number" step="any" id="latInput" required></label>
+  <label>Long DD: <input type="number" step="any" id="lngInput" required></label>
+  <button type="submit">Tampilkan Titik Decimal Degrees</button>
+</form>
+  
+
+  
+<form onsubmit="addDMSMarker(); return false;">
+  <label>
+    Lat DMS:
+    <select id="latDir">
+      <option value="1">N</option>
+      <option value="-1">S</option>
+    </select>
+    <input type="number" id="latDeg" placeholder="°" style="width:50px" required>°
+    <input type="number" id="latMin" placeholder="′" style="width:50px" required>'
+    <input type="number" step="any" id="latSec" placeholder="″" style="width:50px" required>"
+  </label>
+  
+  <label>
+    Lon DMS:
+    <select id="lngDir">
+      <option value="1">E</option>
+      <option value="-1">W</option>
+    </select>
+    <input type="number" id="lngDeg" placeholder="°" style="width:50px" required>°
+    <input type="number" id="lngMin" placeholder="′" style="width:50px" required>'
+    <input type="number" step="any" id="lngSec" placeholder="″" style="width:50px" required>"
+  </label>
+  <button type="submit">Tampilkan Titik DMS</button>
+</form>
+
+  
+<p>
+  <label>Upload CSV Titik:
+    <input type="file" id="csvFile" accept=".csv">
+  </label>
+  <button onclick="loadCSV()">Tampilkan CSV</button>
+  <button onclick="clearAllMarkers()">🗑️ Hapus Semua Titik</button>
+  <button onclick="resetToIndonesia()">🧱 Pusatkan ke Indonesia</button>
+  <button onclick="zoomToPoligon()">📐 Zoom Semua Poligon</button>
+  <button onclick="zoomToMarker()">📍 Zoom Semua Titik</button>
+</p>
+
+<div id="map"></div>
+<div id="legend" class="legend"></div>
+  
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+  const map = L.map('map').setView([-2.5, 118], 5);
+
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  });
+
+  const satelit = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/' +
+    'World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '© Esri'
+  });
+
+  osm.addTo(map);
+  const baseLayers = { "OpenStreetMap": osm, "Satelit": satelit };
+  const layerControl = L.control.layers(baseLayers).addTo(map);
+  
+  const iconCustom = L.icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+    popupAnchor: [0, -30]
+  });
+
+  let allMarkers = [];
+  const geojsonLayers = {};  // menyimpan semua layer GeoJSON yang sudah dimuat
+
+  function addMarker(lat = null, lng = null) {
+    lat = lat ?? parseFloat(document.getElementById("latInput").value);
+    lng = lng ?? parseFloat(document.getElementById("lngInput").value);
+
+    const marker = L.marker([lat, lng], {
+      icon: iconCustom,
+      draggable: true
+    }).addTo(map).bindPopup(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`).openPopup();
+
+    marker.on('dragend', () => {
+      const pos = marker.getLatLng();
+      marker.setPopupContent(`Lat: ${pos.lat.toFixed(6)}, Lng: ${pos.lng.toFixed(6)}`);
+    });
+
+    allMarkers.push(marker);
+    map.setView([lat, lng], 10);
+  }
+
+function dmsToDecimal(deg, min, sec, dir) {
+  return dir * (Math.abs(deg) + (min / 60) + (sec / 3600));
+}
+
+function addDMSMarker() {
+  const lat = dmsToDecimal(
+    parseFloat(document.getElementById('latDeg').value),
+    parseFloat(document.getElementById('latMin').value),
+    parseFloat(document.getElementById('latSec').value),
+    parseFloat(document.getElementById('latDir').value)
+  );
+  const lng = dmsToDecimal(
+    parseFloat(document.getElementById('lngDeg').value),
+    parseFloat(document.getElementById('lngMin').value),
+    parseFloat(document.getElementById('lngSec').value),
+    parseFloat(document.getElementById('lngDir').value)
+  );
+  addMarker(lat, lng);
+}
+
+  
+  function clearAllMarkers() {
+    allMarkers.forEach(m => map.removeLayer(m));
+    allMarkers = [];
+  }
+
+  map.on('click', e => {
+    const { lat, lng } = e.latlng;
+    document.getElementById('latInput').value = lat.toFixed(6);
+    document.getElementById('lngInput').value = lng.toFixed(6);
+    addMarker(lat, lng);
+  });
+
+  function loadCSV() {
+    const file = document.getElementById('csvFile').files[0];
+    if (!file) return alert("Pilih file .csv dulu.");
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const lines = e.target.result.split('\n');
+      lines.forEach(line => {
+        const [latStr, lngStr] = line.trim().split(',');
+        const lat = parseFloat(latStr), lng = parseFloat(lngStr);
+        if (!isNaN(lat) && !isNaN(lng)) addMarker(lat, lng);
+      });
+    };
+    reader.readAsText(file);
+  }
+
+  function loadGeoJSON() {
+    const file = document.getElementById('geojsonFile').files[0];
+    if (!file) return alert("Pilih file GeoJSON.");
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const data = JSON.parse(e.target.result);
+      if (!data || !data.features) return alert("Format tidak valid.");
+      data.features.forEach(f => {
+        if (f.geometry.type === "Point") {
+          const [lng, lat] = f.geometry.coordinates;
+          addMarker(lat, lng);
+        }
+      });
+    };
+    reader.readAsText(file);
+  }
+
+  function downloadGeoJSON() {
+    const features = allMarkers.map(m => {
+      const { lat, lng } = m.getLatLng();
+      return {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [lng, lat] },
+        properties: { popup: m.getPopup()?.getContent() || "" }
+      };
+    });
+    const geojson = { type: "FeatureCollection", features };
+    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "titik.geojson";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const orderedLayers = [
+
+    ['07_KAW_simplified.json', 'KAW', 'LightSkyBlue'],
+    ['06_Perairan_Prov_simplified.json', 'Perairan Provinsi', 'Salmon'],
+    ['05_KSN_Penetapan.json', 'KSN sudah penetapan', 'RoyalBlue'],
+    ['04_KSN_BBK.json', 'KSN BBK (belum penetapan)', 'Plum'],
+    ['03_KKPN.json', 'Kawasan Konservasi Nasional', 'green'],
+    ['02_Wilper_KSNT_PPKT.json', 'Wilper KSNT PPKT', 'SteelBlue'],
+    ['01_Delineasi_KPBPB.json', 'KPBPB', 'indianred']
+  ];
+
+  // Promise.all: pastikan semua layer ter-fetch sebelum ditambahkan
+  Promise.all(
+    orderedLayers.map(([url, name, color]) => {
+      return fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          const layer = L.geoJSON(data, {
+            style: { color, fillColor: color, fillOpacity: 0.4, weight: 0.8 },
+            onEachFeature: (feature, layer) => {
+              const props = feature.properties;
+              const popupContent = Object.entries(props)
+                .map(([key, value]) => `<strong>${key}</strong>: ${value}`)
+                .join('<br>');
+              layer.bindPopup(`<strong>Layer:</strong> ${name}<br>` + popupContent);
+            }
+          });
+          geojsonLayers[name] = layer;
+        });
+    })
+  ).then(() => {
+    orderedLayers.forEach(([_, name]) => {
+      const layer = geojsonLayers[name];
+      if (layer) {
+        layer.addTo(map);
+        layerControl.addOverlay(layer, name);
+      }
+    });
+  });
+
+  function resetToIndonesia() {
+    map.setView([-2.5, 118], 5);
+  }
+
+  function zoomToPoligon() {
+    const allPoligonBounds = [];
+    map.eachLayer(layer => {
+      if (layer instanceof L.GeoJSON && layer.getBounds) {
+        allPoligonBounds.push(layer.getBounds());
+      }
+    });
+
+    if (allPoligonBounds.length > 0) {
+      let bounds = allPoligonBounds[0];
+      for (let i = 1; i < allPoligonBounds.length; i++) {
+        bounds.extend(allPoligonBounds[i]);
+      }
+      map.fitBounds(bounds);
+    } else {
+      alert("Belum ada layer poligon yang dimuat.");
+    }
+  }
+
+  function zoomToMarker() {
+    if (allMarkers.length === 0) {
+      alert("Belum ada marker titik.");
+      return;
+    }
+    const latlngs = allMarkers.map(m => m.getLatLng());
+    const bounds = L.latLngBounds(latlngs);
+    map.fitBounds(bounds);
+  }
+
+// Tambah legenda
+  const legendData = [
+    ['KAW', 'LightSkyBlue'],
+    ['Perairan Provinsi', 'Salmon'],
+    ['KSN sudah penetapan', 'RoyalBlue'],
+    ['KSN BBK (belum penetapan)', 'Plum'],
+    ['Kawasan Konservasi Nasional', 'green'],
+    ['Wilper KSNT PPKT', 'SteelBlue'],
+    ['KPBPB', 'indianred']
+  ];
+
+  const legendDiv = document.getElementById('legend');
+   legendDiv.innerHTML = `
+  <div id="legend-header" style="cursor:pointer; font-weight:bold; margin-bottom:4px;">
+    ▾ Legenda
+  </div>
+  <div id="legend-content">
+    ${legendData.map(([label, color]) =>
+      `<i style="background:${color}"></i>${label}`
+    ).join('<br>')}
+  </div>
+`;
+
+  document.getElementById('legend-header').addEventListener('click', () => {
+  const content = document.getElementById('legend-content');
+  const header = document.getElementById('legend-header');
+  if (content.style.display === 'none') {
+    content.style.display = 'block';
+    header.innerHTML = '▾ Legenda';
+  } else {
+    content.style.display = 'none';
+    header.innerHTML = '▸ Legenda';
+  }
+});
+  
+</script>
+
+</body>
+</html>
