@@ -9,10 +9,8 @@
 
 <style>
 body { margin:0; font-family:Segoe UI; }
-
 #map { height:92vh; }
 
-/* HEADER */
 .header {
   padding:6px 10px;
   background:#2f5fa7;
@@ -20,12 +18,12 @@ body { margin:0; font-family:Segoe UI; }
   font-weight:bold;
 }
 
-/* TOPBAR */
 .topbar {
   display:flex;
   gap:6px;
   padding:6px;
   background:#3f6fb5;
+  align-items:center;
 }
 
 .search-box {
@@ -34,19 +32,8 @@ body { margin:0; font-family:Segoe UI; }
   border-radius:4px;
   overflow:hidden;
 }
-
-.search-box input {
-  border:none;
-  padding:5px;
-  outline:none;
-}
-
-.search-box button {
-  border:none;
-  background:#ddd;
-  padding:5px 10px;
-  cursor:pointer;
-}
+.search-box input { border:none; padding:5px; outline:none; }
+.search-box button { border:none; background:#ddd; padding:5px 10px; cursor:pointer; }
 
 .btn {
   background:rgba(255,255,255,0.2);
@@ -69,19 +56,14 @@ body { margin:0; font-family:Segoe UI; }
   font-size:13px;
   width:220px;
 }
-
 .panel-header {
   padding:5px;
   background:#eee;
   cursor:move;
   font-weight:bold;
 }
+.panel-body { padding:10px; }
 
-.panel-body {
-  padding:10px;
-}
-
-/* POSISI AWAL */
 #legend { top:350px; left:20px; }
 #layerPanel { top:100px; left:250px; }
 #inputPanel { top:100px; left:480px; display:none; }
@@ -96,7 +78,6 @@ body { margin:0; font-family:Segoe UI; }
 <div class="header">SiBangla WebGIS</div>
 
 <div class="topbar">
-
   <div class="search-box">
     <input id="searchBox" placeholder="Find location...">
     <button onclick="searchLocation()">🔍</button>
@@ -108,6 +89,7 @@ body { margin:0; font-family:Segoe UI; }
   <button class="btn" onclick="toggle('minimapPanel')">Mini Map</button>
   <button class="btn" onclick="resetAll()">Reset</button>
 
+  <button class="btn" style="margin-left:auto" onclick="toggle('helpPanel')">Info / Help</button>
 </div>
 
 <div id="map"></div>
@@ -116,30 +98,23 @@ body { margin:0; font-family:Segoe UI; }
 <div id="inputPanel" class="panel">
 <div class="panel-header">Input Point</div>
 <div class="panel-body">
-
 <b>Decimal Degrees</b><br>
 Lat <input id="latInput"><br>
 Lng <input id="lngInput"><br>
 <button onclick="addMarkerDD()">OK</button>
-
 <hr>
-
 <b>DMS</b><br>
-
 Lat:
 <select id="latDir"><option value="1">N</option><option value="-1">S</option></select>
 <input id="latDeg" size="2">°
 <input id="latMin" size="2">'
 <input id="latSec" size="2">"<br>
-
 Lng:
 <select id="lngDir"><option value="1">E</option><option value="-1">W</option></select>
 <input id="lngDeg" size="2">°
 <input id="lngMin" size="2">'
 <input id="lngSec" size="2">"<br>
-
 <button onclick="addMarkerDMS()">OK DMS</button>
-
 </div>
 </div>
 
@@ -149,7 +124,6 @@ Lng:
 <div class="panel-body">
 CSV <input type="file" id="csvFile"><br>
 <button onclick="loadCSV()">Load CSV</button><br><br>
-
 GeoJSON <input type="file" id="geojsonFile"><br>
 <button onclick="loadGeoJSON()">Load GeoJSON</button>
 </div>
@@ -173,6 +147,18 @@ GeoJSON <input type="file" id="geojsonFile"><br>
 <div id="miniMap" style="height:120px;"></div>
 </div>
 
+<!-- HELP -->
+<div id="helpPanel" class="panel" style="top:100px; right:20px; left:auto; display:none;">
+<div class="panel-header">Help</div>
+<div class="panel-body">
+- Search lokasi<br>
+- Input DD / DMS<br>
+- Upload CSV / GeoJSON<br>
+- Draw: digitasi<br>
+- Measure: garis/polygon → otomatis hitung<br>
+</div>
+</div>
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
 
@@ -183,17 +169,28 @@ const map = L.map('map').setView([-2.5,118],5);
 
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
 const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
-
 osm.addTo(map);
 
-L.control.scale().addTo(map);
+// scale + posisi naik
+L.control.scale({position:'bottomleft'}).addTo(map);
 
-// ================= ENTER SEARCH =================
+// north arrow
+const north = L.control({position:"bottomleft"});
+north.onAdd = function(){
+  const div = L.DomUtil.create("div");
+  div.innerHTML = "⬆️ N";
+  div.style.background="white";
+  div.style.padding="4px";
+  div.style.marginBottom="30px";
+  return div;
+};
+north.addTo(map);
+
+// ================= SEARCH =================
 searchBox.addEventListener("keypress", e=>{
   if(e.key==="Enter") searchLocation();
 });
 
-// ================= SEARCH =================
 async function searchLocation(){
   const q = searchBox.value;
   const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}`);
@@ -201,23 +198,37 @@ async function searchLocation(){
   if(d.length) map.setView([d[0].lat,d[0].lon],12);
 }
 
-// ================= DRAW =================
+// ================= DRAW & MEASURE =================
 const drawnItems = new L.FeatureGroup().addTo(map);
 
 const drawControl = new L.Control.Draw({
-  edit:{featureGroup: drawnItems},
   draw:{
     polygon:true,
     polyline:true,
     rectangle:true,
-    circle:false,
     marker:true
-  }
+  },
+  edit:{featureGroup:drawnItems}
 });
 map.addControl(drawControl);
 
 map.on(L.Draw.Event.CREATED, e=>{
-  drawnItems.addLayer(e.layer);
+  const layer = e.layer;
+  drawnItems.addLayer(layer);
+
+  if(layer instanceof L.Polyline){
+    let dist = 0;
+    const latlngs = layer.getLatLngs();
+    for(let i=1;i<latlngs.length;i++){
+      dist += latlngs[i-1].distanceTo(latlngs[i]);
+    }
+    layer.bindPopup("Jarak: "+(dist/1000).toFixed(2)+" km").openPopup();
+  }
+
+  if(layer instanceof L.Polygon){
+    const area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
+    layer.bindPopup("Luas: "+(area/1000000).toFixed(2)+" km²").openPopup();
+  }
 });
 
 // ================= INPUT =================
@@ -242,7 +253,6 @@ function addMarkerDMS(){
 
 // ================= UPLOAD =================
 function loadCSV(){
-  const file = csvFile.files[0];
   const r = new FileReader();
   r.onload = e=>{
     e.target.result.split("\n").forEach(l=>{
@@ -250,7 +260,7 @@ function loadCSV(){
       if(lat && lng) L.marker([+lat,+lng]).addTo(drawnItems);
     });
   };
-  r.readAsText(file);
+  r.readAsText(csvFile.files[0]);
 }
 
 function loadGeoJSON(){
@@ -263,40 +273,44 @@ function loadGeoJSON(){
   r.readAsText(geojsonFile.files[0]);
 }
 
-// ================= BASEMAP =================
-layerList.innerHTML += `
-<b>Basemap</b><br>
-<input type="radio" name="bm" checked onclick="map.addLayer(osm);map.removeLayer(sat)"> OSM<br>
-<input type="radio" name="bm" onclick="map.addLayer(sat);map.removeLayer(osm)"> Satellite<br><hr>
-`;
+// ================= LAYER + LEGEND =================
+let activeLayers = new Set();
+
+function updateLegend(){
+  const el = document.getElementById("legendContent");
+  if(activeLayers.size===0){
+    el.innerHTML="<i>Tidak ada layer aktif</i>";
+    return;
+  }
+  el.innerHTML="";
+  activeLayers.forEach(name=>{
+    el.innerHTML += `<div>■ ${name}</div>`;
+  });
+}
 
 // ================= MINIMAP =================
 const miniMap = L.map('miniMap',{zoomControl:false, attributionControl:false});
 miniMap.setView([-2.5,118],3);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
 
-let rect = L.rectangle(map.getBounds()).addTo(miniMap);
+let rect = L.rectangle(map.getBounds(),{
+  color:'red',weight:2,fill:false
+}).addTo(miniMap);
 
-map.on('move', ()=>{
-  rect.setBounds(map.getBounds());
-});
+map.on('move', ()=> rect.setBounds(map.getBounds()));
 
-// FIX ukuran minimap saat dibuka
+// ================= UI =================
 function toggle(id){
   const el = document.getElementById(id);
   el.style.display = el.style.display==="none"?"block":"none";
-
-  if(id==="minimapPanel"){
-    setTimeout(()=> miniMap.invalidateSize(),300);
-  }
+  if(id==="minimapPanel") setTimeout(()=> miniMap.invalidateSize(),300);
 }
 
-// ================= RESET =================
 function resetAll(){
   drawnItems.clearLayers();
 }
 
-// ================= DRAG PANEL =================
+// drag panel
 document.querySelectorAll('.panel').forEach(el=>{
   const header = el.querySelector('.panel-header');
   header.onmousedown = e=>{
@@ -311,5 +325,6 @@ document.querySelectorAll('.panel').forEach(el=>{
 });
 
 </script>
+
 </body>
 </html>
