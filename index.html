@@ -2,39 +2,74 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>SiBangLa WebGIS</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SiBangla WebGIS</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css"/>
 
 <style>
 body { margin:0; font-family:Segoe UI; }
+
 #map { height:92vh; }
+
+/* HEADER */
+.header {
+  padding:6px 10px;
+  background:#2f5fa7;
+  color:white;
+  font-weight:bold;
+}
 
 /* TOPBAR */
 .topbar {
-  display:flex; gap:8px; padding:8px;
-  background:#3f6fb5; color:white;
+  display:flex;
+  gap:6px;
+  padding:6px;
+  background:#3f6fb5;
 }
-.topbar input { padding:5px; border:none; border-radius:4px; }
+
+.search-box {
+  display:flex;
+  background:white;
+  border-radius:4px;
+  overflow:hidden;
+}
+
+.search-box input {
+  border:none;
+  padding:5px;
+  outline:none;
+}
+
+.search-box button {
+  border:none;
+  background:#ddd;
+  padding:5px 10px;
+  cursor:pointer;
+}
+
 .btn {
-  background:rgba(255,255,255,0.15);
-  border:none; color:white; padding:6px 10px;
-  border-radius:4px; cursor:pointer;
+  background:rgba(255,255,255,0.2);
+  border:none;
+  color:white;
+  padding:5px 10px;
+  border-radius:4px;
+  cursor:pointer;
 }
 
 /* PANEL */
 .panel {
   position:absolute;
+  top:100px;
+  left:20px;
   background:white;
   border-radius:8px;
   box-shadow:0 2px 6px rgba(0,0,0,0.3);
   z-index:1000;
   font-size:13px;
+  width:220px;
 }
 
-/* HEADER DRAG */
 .panel-header {
   padding:5px;
   background:#eee;
@@ -42,29 +77,37 @@ body { margin:0; font-family:Segoe UI; }
   font-weight:bold;
 }
 
-/* CONTENT */
-.panel-body { padding:10px; }
+.panel-body {
+  padding:10px;
+}
 
-#legend { bottom:15px; left:15px; }
-#layerPanel { top:100px; right:20px; }
-#minimapPanel { width:200px; height:150px; top:100px; left:20px; display:none; }
-#uploadPanel { top:100px; left:300px; display:none; }
-#inputPanel { top:100px; left:150px; display:none; }
+/* POSISI AWAL */
+#legend { top:350px; left:20px; }
+#layerPanel { top:100px; left:250px; }
+#inputPanel { top:100px; left:480px; display:none; }
+#uploadPanel { top:100px; left:720px; display:none; }
+#minimapPanel { top:350px; left:250px; display:none; }
 
 </style>
 </head>
 
 <body>
 
+<div class="header">SiBangla WebGIS</div>
+
 <div class="topbar">
-  🔍 <input id="searchBox">
-  <button class="btn" onclick="searchLocation()">Search</button>
+
+  <div class="search-box">
+    <input id="searchBox" placeholder="Find location...">
+    <button onclick="searchLocation()">🔍</button>
+  </div>
 
   <button class="btn" onclick="toggle('inputPanel')">Input Point</button>
   <button class="btn" onclick="toggle('uploadPanel')">My Location</button>
   <button class="btn" onclick="toggle('layerPanel')">Layer</button>
   <button class="btn" onclick="toggle('minimapPanel')">Mini Map</button>
   <button class="btn" onclick="resetAll()">Reset</button>
+
 </div>
 
 <div id="map"></div>
@@ -73,12 +116,16 @@ body { margin:0; font-family:Segoe UI; }
 <div id="inputPanel" class="panel">
 <div class="panel-header">Input Point</div>
 <div class="panel-body">
-Lat <input id="latInput">
-Lng <input id="lngInput">
+
+<b>Decimal Degrees</b><br>
+Lat <input id="latInput"><br>
+Lng <input id="lngInput"><br>
 <button onclick="addMarkerDD()">OK</button>
 
 <hr>
-DMS<br>
+
+<b>DMS</b><br>
+
 Lat:
 <select id="latDir"><option value="1">N</option><option value="-1">S</option></select>
 <input id="latDeg" size="2">°
@@ -92,6 +139,7 @@ Lng:
 <input id="lngSec" size="2">"<br>
 
 <button onclick="addMarkerDMS()">OK DMS</button>
+
 </div>
 </div>
 
@@ -99,14 +147,17 @@ Lng:
 <div id="uploadPanel" class="panel">
 <div class="panel-header">My Location</div>
 <div class="panel-body">
-CSV <input type="file" id="csvFile"><button onclick="loadCSV()">Load</button><br><br>
-GeoJSON <input type="file" id="geojsonFile"><button onclick="loadGeoJSON()">Load</button>
+CSV <input type="file" id="csvFile"><br>
+<button onclick="loadCSV()">Load CSV</button><br><br>
+
+GeoJSON <input type="file" id="geojsonFile"><br>
+<button onclick="loadGeoJSON()">Load GeoJSON</button>
 </div>
 </div>
 
 <!-- LAYER -->
 <div id="layerPanel" class="panel">
-<div class="panel-header">Layer</div>
+<div class="panel-header">Layer & Basemap</div>
 <div class="panel-body" id="layerList"></div>
 </div>
 
@@ -127,19 +178,53 @@ GeoJSON <input type="file" id="geojsonFile"><button onclick="loadGeoJSON()">Load
 
 <script>
 
-// MAP
+// ================= MAP =================
 const map = L.map('map').setView([-2.5,118],5);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+
+osm.addTo(map);
+
 L.control.scale().addTo(map);
 
-// DRAW
+// ================= ENTER SEARCH =================
+searchBox.addEventListener("keypress", e=>{
+  if(e.key==="Enter") searchLocation();
+});
+
+// ================= SEARCH =================
+async function searchLocation(){
+  const q = searchBox.value;
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}`);
+  const d = await res.json();
+  if(d.length) map.setView([d[0].lat,d[0].lon],12);
+}
+
+// ================= DRAW =================
 const drawnItems = new L.FeatureGroup().addTo(map);
+
+const drawControl = new L.Control.Draw({
+  edit:{featureGroup: drawnItems},
+  draw:{
+    polygon:true,
+    polyline:true,
+    rectangle:true,
+    circle:false,
+    marker:true
+  }
+});
+map.addControl(drawControl);
+
+map.on(L.Draw.Event.CREATED, e=>{
+  drawnItems.addLayer(e.layer);
+});
 
 // ================= INPUT =================
 function addMarkerDD(){
-  const lat = parseFloat(document.getElementById('latInput').value);
-  const lng = parseFloat(document.getElementById('lngInput').value);
-  if(isNaN(lat)||isNaN(lng)) return alert("Input salah");
+  const lat = +latInput.value;
+  const lng = +lngInput.value;
+  if(!lat || !lng) return;
   L.marker([lat,lng]).addTo(drawnItems);
   map.setView([lat,lng],12);
 }
@@ -149,12 +234,8 @@ function dms(d,m,s,dir){
 }
 
 function addMarkerDMS(){
-  const lat = dms(
-    +latDeg.value,+latMin.value,+latSec.value,+latDir.value
-  );
-  const lng = dms(
-    +lngDeg.value,+lngMin.value,+lngSec.value,+lngDir.value
-  );
+  const lat = dms(+latDeg.value,+latMin.value,+latSec.value,+latDir.value);
+  const lng = dms(+lngDeg.value,+lngMin.value,+lngSec.value,+lngDir.value);
   L.marker([lat,lng]).addTo(drawnItems);
   map.setView([lat,lng],12);
 }
@@ -166,68 +247,49 @@ function loadCSV(){
   r.onload = e=>{
     e.target.result.split("\n").forEach(l=>{
       const [lat,lng]=l.split(",");
-      if(lat && lng){
-        L.marker([+lat,+lng]).addTo(drawnItems);
-      }
+      if(lat && lng) L.marker([+lat,+lng]).addTo(drawnItems);
     });
   };
   r.readAsText(file);
 }
 
 function loadGeoJSON(){
-  const file = geojsonFile.files[0];
   const r = new FileReader();
   r.onload = e=>{
     const layer = L.geoJSON(JSON.parse(e.target.result));
     drawnItems.addLayer(layer);
     map.fitBounds(layer.getBounds());
   };
-  r.readAsText(file);
+  r.readAsText(geojsonFile.files[0]);
 }
 
-// ================= GEOJSON CONFIG =================
-const geojsonConfigs = [
-  { name:"KAW", url:"07_KAW_simplified.json", color:"blue" },
-  { name:"Prov", url:"06_Perairan_Prov_simplified.json", color:"red" }
-];
-
-const geoLayers = {};
-
-geojsonConfigs.forEach(cfg=>{
-  fetch(cfg.url)
-  .then(r=>r.json())
-  .then(data=>{
-    geoLayers[cfg.name]=L.geoJSON(data,{style:{color:cfg.color}});
-    geoLayers[cfg.name].addTo(map);
-    createLayerControl(cfg);
-  });
-});
-
-function createLayerControl(cfg){
-  const el = document.createElement("div");
-  el.innerHTML = `<input type="checkbox" checked onchange="toggleLayer('${cfg.name}')"> ${cfg.name}`;
-  layerList.appendChild(el);
-}
-
-function toggleLayer(name){
-  if(map.hasLayer(geoLayers[name])){
-    map.removeLayer(geoLayers[name]);
-  } else {
-    map.addLayer(geoLayers[name]);
-  }
-}
+// ================= BASEMAP =================
+layerList.innerHTML += `
+<b>Basemap</b><br>
+<input type="radio" name="bm" checked onclick="map.addLayer(osm);map.removeLayer(sat)"> OSM<br>
+<input type="radio" name="bm" onclick="map.addLayer(sat);map.removeLayer(osm)"> Satellite<br><hr>
+`;
 
 // ================= MINIMAP =================
-const miniMap = L.map('miniMap',{zoomControl:false, attributionControl:false})
-.setView([-2.5,118],3);
-
+const miniMap = L.map('miniMap',{zoomControl:false, attributionControl:false});
+miniMap.setView([-2.5,118],3);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
 
-let rect = L.rectangle(map.getBounds(),{color:'red'}).addTo(miniMap);
+let rect = L.rectangle(map.getBounds()).addTo(miniMap);
 
-map.on('move',()=>{
+map.on('move', ()=>{
   rect.setBounds(map.getBounds());
 });
+
+// FIX ukuran minimap saat dibuka
+function toggle(id){
+  const el = document.getElementById(id);
+  el.style.display = el.style.display==="none"?"block":"none";
+
+  if(id==="minimapPanel"){
+    setTimeout(()=> miniMap.invalidateSize(),300);
+  }
+}
 
 // ================= RESET =================
 function resetAll(){
@@ -241,34 +303,13 @@ document.querySelectorAll('.panel').forEach(el=>{
     let x = e.clientX - el.offsetLeft;
     let y = e.clientY - el.offsetTop;
     document.onmousemove = e=>{
-      let left = e.clientX - x;
-      let top = e.clientY - y;
-
-      left = Math.max(0,left);
-      top = Math.max(0,top);
-
-      el.style.left = left+"px";
-      el.style.top = top+"px";
+      el.style.left = (e.clientX - x)+"px";
+      el.style.top = (e.clientY - y)+"px";
     };
     document.onmouseup = ()=> document.onmousemove=null;
   };
 });
 
-// ================= SEARCH =================
-async function searchLocation(){
-  const q = searchBox.value;
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}`);
-  const d = await res.json();
-  if(d.length) map.setView([d[0].lat,d[0].lon],12);
-}
-
-// ================= TOGGLE =================
-function toggle(id){
-  const el = document.getElementById(id);
-  el.style.display = el.style.display==="none"?"block":"none";
-}
-
 </script>
-
 </body>
 </html>
