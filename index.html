@@ -9,13 +9,13 @@
 
 <style>
 body { margin:0; font-family:Segoe UI; }
-#map { height:92vh; }
 
 .header {
-  padding:6px 10px;
+  padding:10px;
   background:#2f5fa7;
   color:white;
   font-weight:bold;
+  font-size:20px;
 }
 
 .topbar {
@@ -25,6 +25,8 @@ body { margin:0; font-family:Segoe UI; }
   background:#3f6fb5;
   align-items:center;
 }
+
+#map { height: calc(100vh - 80px); }
 
 .search-box {
   display:flex;
@@ -54,7 +56,8 @@ body { margin:0; font-family:Segoe UI; }
   box-shadow:0 2px 6px rgba(0,0,0,0.3);
   z-index:1000;
   font-size:13px;
-  width:220px;
+  width:230px;
+  display:none;
 }
 .panel-header {
   padding:5px;
@@ -64,11 +67,12 @@ body { margin:0; font-family:Segoe UI; }
 }
 .panel-body { padding:10px; }
 
+/* posisi */
 #legend { top:350px; left:20px; }
 #layerPanel { top:100px; left:250px; }
-#inputPanel { top:100px; left:480px; display:none; }
-#uploadPanel { top:100px; left:720px; display:none; }
-#minimapPanel { top:350px; left:250px; display:none; }
+#inputPanel { top:100px; left:480px; }
+#uploadPanel { top:100px; left:720px; }
+#minimapPanel { top:350px; left:250px; }
 
 </style>
 </head>
@@ -78,6 +82,7 @@ body { margin:0; font-family:Segoe UI; }
 <div class="header">SiBangla WebGIS</div>
 
 <div class="topbar">
+
   <div class="search-box">
     <input id="searchBox" placeholder="Find location...">
     <button onclick="searchLocation()">🔍</button>
@@ -85,11 +90,14 @@ body { margin:0; font-family:Segoe UI; }
 
   <button class="btn" onclick="toggle('inputPanel')">Input Point</button>
   <button class="btn" onclick="toggle('uploadPanel')">My Location</button>
-  <button class="btn" onclick="toggle('layerPanel')">Layer</button>
+  <button class="btn" onclick="toggle('layerPanel')">Layers</button>
+  <button class="btn" onclick="toggle('legend')">Legend</button>
   <button class="btn" onclick="toggle('minimapPanel')">Mini Map</button>
-  <button class="btn" onclick="resetAll()">Reset</button>
 
-  <button class="btn" style="margin-left:auto" onclick="toggle('helpPanel')">Info / Help</button>
+  <!-- kanan -->
+  <button class="btn" style="margin-left:auto" onclick="resetAll()">Reset</button>
+  <button class="btn" onclick="toggle('helpPanel')">Info / Help</button>
+
 </div>
 
 <div id="map"></div>
@@ -98,23 +106,29 @@ body { margin:0; font-family:Segoe UI; }
 <div id="inputPanel" class="panel">
 <div class="panel-header">Input Point</div>
 <div class="panel-body">
+
 <b>Decimal Degrees</b><br>
 Lat <input id="latInput"><br>
 Lng <input id="lngInput"><br>
 <button onclick="addMarkerDD()">OK</button>
+
 <hr>
+
 <b>DMS</b><br>
 Lat:
 <select id="latDir"><option value="1">N</option><option value="-1">S</option></select>
 <input id="latDeg" size="2">°
 <input id="latMin" size="2">'
 <input id="latSec" size="2">"<br>
+
 Lng:
 <select id="lngDir"><option value="1">E</option><option value="-1">W</option></select>
 <input id="lngDeg" size="2">°
 <input id="lngMin" size="2">'
 <input id="lngSec" size="2">"<br>
+
 <button onclick="addMarkerDMS()">OK DMS</button>
+
 </div>
 </div>
 
@@ -131,31 +145,31 @@ GeoJSON <input type="file" id="geojsonFile"><br>
 
 <!-- LAYER -->
 <div id="layerPanel" class="panel">
-<div class="panel-header">Layer & Basemap</div>
+<div class="panel-header">Layers & Basemap</div>
 <div class="panel-body" id="layerList"></div>
 </div>
 
 <!-- LEGEND -->
 <div id="legend" class="panel">
 <div class="panel-header">Legenda</div>
-<div class="panel-body" id="legendContent"></div>
+<div class="panel-body" id="legendContent">Belum ada layer aktif</div>
 </div>
 
 <!-- MINIMAP -->
 <div id="minimapPanel" class="panel">
 <div class="panel-header">Mini Map</div>
-<div id="miniMap" style="height:120px;"></div>
+<div id="miniMap" style="height:130px;"></div>
 </div>
 
 <!-- HELP -->
-<div id="helpPanel" class="panel" style="top:100px; right:20px; left:auto; display:none;">
+<div id="helpPanel" class="panel" style="right:20px; left:auto;">
 <div class="panel-header">Help</div>
 <div class="panel-body">
 - Search lokasi<br>
 - Input DD / DMS<br>
 - Upload CSV / GeoJSON<br>
-- Draw: digitasi<br>
-- Measure: garis/polygon → otomatis hitung<br>
+- Draw: digitasi objek<br>
+- Measure: otomatis hitung<br>
 </div>
 </div>
 
@@ -164,163 +178,144 @@ GeoJSON <input type="file" id="geojsonFile"><br>
 
 <script>
 
-// ================= MAP =================
+// MAP
 const map = L.map('map').setView([-2.5,118],5);
 
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
 const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
 osm.addTo(map);
 
-// scale + posisi naik
-L.control.scale({position:'bottomleft'}).addTo(map);
+// SCALE (lebih panjang)
+L.control.scale({maxWidth:200}).addTo(map);
 
-// north arrow
-const north = L.control({position:"bottomleft"});
-north.onAdd = function(){
+// COMPASS (clean)
+const compass = L.control({position:"bottomleft"});
+compass.onAdd = function(){
   const div = L.DomUtil.create("div");
-  div.innerHTML = "⬆️ N";
+  div.innerHTML = "🧭";
   div.style.background="white";
-  div.style.padding="4px";
+  div.style.padding="5px";
   div.style.marginBottom="30px";
   return div;
 };
-north.addTo(map);
+compass.addTo(map);
 
-// ================= SEARCH =================
+// SEARCH
 searchBox.addEventListener("keypress", e=>{
   if(e.key==="Enter") searchLocation();
 });
-
 async function searchLocation(){
-  const q = searchBox.value;
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}`);
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchBox.value}`);
   const d = await res.json();
   if(d.length) map.setView([d[0].lat,d[0].lon],12);
 }
 
-// ================= DRAW & MEASURE =================
+// DRAW + CATATAN
 const drawnItems = new L.FeatureGroup().addTo(map);
 
 const drawControl = new L.Control.Draw({
-  draw:{
-    polygon:true,
-    polyline:true,
-    rectangle:true,
-    marker:true
-  },
-  edit:{featureGroup:drawnItems}
+  edit:{featureGroup:drawnItems},
+  draw:{polygon:true, polyline:true, rectangle:true, marker:true}
 });
 map.addControl(drawControl);
 
 map.on(L.Draw.Event.CREATED, e=>{
   const layer = e.layer;
-  drawnItems.addLayer(layer);
+  const note = prompt("Nama objek / catatan:");
+
+  let info = note ? note+"<br>" : "";
 
   if(layer instanceof L.Polyline){
-    let dist = 0;
-    const latlngs = layer.getLatLngs();
-    for(let i=1;i<latlngs.length;i++){
-      dist += latlngs[i-1].distanceTo(latlngs[i]);
-    }
-    layer.bindPopup("Jarak: "+(dist/1000).toFixed(2)+" km").openPopup();
+    let dist=0;
+    const pts = layer.getLatLngs();
+    for(let i=1;i<pts.length;i++) dist+=pts[i-1].distanceTo(pts[i]);
+    info += "Jarak: "+(dist/1000).toFixed(2)+" km";
   }
 
   if(layer instanceof L.Polygon){
     const area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
-    layer.bindPopup("Luas: "+(area/1000000).toFixed(2)+" km²").openPopup();
+    info += "Luas: "+(area/1000000).toFixed(2)+" km²";
   }
+
+  layer.bindPopup(info).openPopup();
+  drawnItems.addLayer(layer);
 });
 
-// ================= INPUT =================
+// INPUT
 function addMarkerDD(){
-  const lat = +latInput.value;
-  const lng = +lngInput.value;
-  if(!lat || !lng) return;
+  const lat=+latInput.value,lng=+lngInput.value;
+  if(!lat||!lng) return;
   L.marker([lat,lng]).addTo(drawnItems);
   map.setView([lat,lng],12);
 }
 
-function dms(d,m,s,dir){
-  return dir*(Math.abs(d)+(m/60)+(s/3600));
-}
+function dms(d,m,s,dir){return dir*(Math.abs(d)+(m/60)+(s/3600));}
 
 function addMarkerDMS(){
-  const lat = dms(+latDeg.value,+latMin.value,+latSec.value,+latDir.value);
-  const lng = dms(+lngDeg.value,+lngMin.value,+lngSec.value,+lngDir.value);
+  const lat=dms(+latDeg.value,+latMin.value,+latSec.value,+latDir.value);
+  const lng=dms(+lngDeg.value,+lngMin.value,+lngSec.value,+lngDir.value);
   L.marker([lat,lng]).addTo(drawnItems);
   map.setView([lat,lng],12);
 }
 
-// ================= UPLOAD =================
+// UPLOAD
 function loadCSV(){
-  const r = new FileReader();
-  r.onload = e=>{
+  const r=new FileReader();
+  r.onload=e=>{
     e.target.result.split("\n").forEach(l=>{
       const [lat,lng]=l.split(",");
-      if(lat && lng) L.marker([+lat,+lng]).addTo(drawnItems);
+      if(lat&&lng) L.marker([+lat,+lng]).addTo(drawnItems);
     });
   };
   r.readAsText(csvFile.files[0]);
 }
 
 function loadGeoJSON(){
-  const r = new FileReader();
-  r.onload = e=>{
-    const layer = L.geoJSON(JSON.parse(e.target.result));
+  const r=new FileReader();
+  r.onload=e=>{
+    const layer=L.geoJSON(JSON.parse(e.target.result));
     drawnItems.addLayer(layer);
     map.fitBounds(layer.getBounds());
   };
   r.readAsText(geojsonFile.files[0]);
 }
 
-// ================= LAYER + LEGEND =================
-let activeLayers = new Set();
+// BASEMAP MENU
+layerList.innerHTML = `
+<b>Basemap</b><br>
+<input type="radio" name="bm" checked onclick="map.addLayer(osm);map.removeLayer(sat)"> OSM<br>
+<input type="radio" name="bm" onclick="map.addLayer(sat);map.removeLayer(osm)"> Satellite<br>
+<hr>
+<b>Layer (coming soon)</b>
+`;
 
-function updateLegend(){
-  const el = document.getElementById("legendContent");
-  if(activeLayers.size===0){
-    el.innerHTML="<i>Tidak ada layer aktif</i>";
-    return;
-  }
-  el.innerHTML="";
-  activeLayers.forEach(name=>{
-    el.innerHTML += `<div>■ ${name}</div>`;
-  });
-}
-
-// ================= MINIMAP =================
-const miniMap = L.map('miniMap',{zoomControl:false, attributionControl:false});
+// MINIMAP
+const miniMap=L.map('miniMap',{zoomControl:false,attributionControl:false});
 miniMap.setView([-2.5,118],3);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
 
-let rect = L.rectangle(map.getBounds(),{
-  color:'red',weight:2,fill:false
-}).addTo(miniMap);
+let rect=L.rectangle(map.getBounds(),{color:'red',weight:2,fill:false}).addTo(miniMap);
+map.on('move',()=>rect.setBounds(map.getBounds()));
 
-map.on('move', ()=> rect.setBounds(map.getBounds()));
-
-// ================= UI =================
+// UI
 function toggle(id){
-  const el = document.getElementById(id);
+  const el=document.getElementById(id);
   el.style.display = el.style.display==="none"?"block":"none";
-  if(id==="minimapPanel") setTimeout(()=> miniMap.invalidateSize(),300);
+  if(id==="minimapPanel") setTimeout(()=>miniMap.invalidateSize(),300);
 }
 
-function resetAll(){
-  drawnItems.clearLayers();
-}
+function resetAll(){ drawnItems.clearLayers(); }
 
-// drag panel
+// DRAG
 document.querySelectorAll('.panel').forEach(el=>{
-  const header = el.querySelector('.panel-header');
-  header.onmousedown = e=>{
-    let x = e.clientX - el.offsetLeft;
-    let y = e.clientY - el.offsetTop;
-    document.onmousemove = e=>{
-      el.style.left = (e.clientX - x)+"px";
-      el.style.top = (e.clientY - y)+"px";
+  const h=el.querySelector('.panel-header');
+  h.onmousedown=e=>{
+    let x=e.clientX-el.offsetLeft,y=e.clientY-el.offsetTop;
+    document.onmousemove=e=>{
+      el.style.left=(e.clientX-x)+"px";
+      el.style.top=(e.clientY-y)+"px";
     };
-    document.onmouseup = ()=> document.onmousemove=null;
+    document.onmouseup=()=>document.onmousemove=null;
   };
 });
 
