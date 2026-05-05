@@ -6,36 +6,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css"/>
 
 <style>
-body { margin:0; font-family: 'Segoe UI', sans-serif; }
-#map { height: 92vh; }
+body { margin:0; font-family:Segoe UI; }
+#map { height:92vh; }
 
 /* TOPBAR */
 .topbar {
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:8px 12px;
-  background:#3f6fb5;
-  color:white;
-  font-size:14px;
+  display:flex; gap:8px; padding:8px;
+  background:#3f6fb5; color:white;
 }
-.topbar input {
-  border:none;
-  padding:6px 10px;
-  border-radius:4px;
-}
+.topbar input { padding:5px; border:none; border-radius:4px; }
 .btn {
   background:rgba(255,255,255,0.15);
-  border:none;
-  color:white;
-  padding:6px 10px;
-  border-radius:4px;
-  cursor:pointer;
+  border:none; color:white; padding:6px 10px;
+  border-radius:4px; cursor:pointer;
 }
 .btn:hover { background:rgba(255,255,255,0.3); }
 
@@ -45,21 +31,16 @@ body { margin:0; font-family: 'Segoe UI', sans-serif; }
   background:white;
   padding:10px;
   border-radius:8px;
-  box-shadow:0 2px 8px rgba(0,0,0,0.2);
+  box-shadow:0 2px 6px rgba(0,0,0,0.3);
   z-index:1000;
   font-size:13px;
+  cursor:move;
 }
 
-/* LEGEND */
-.legend { bottom:15px; left:15px; }
-
-/* MINIMAP */
-.minimap { width:200px; height:150px; top:80px; left:15px; }
-
-/* HELP */
-.help { top:80px; right:15px; display:none; }
-
-input { margin:2px; }
+/* POSISI */
+#legend { bottom:15px; left:15px; }
+#minimapPanel { width:200px; height:150px; top:100px; left:20px; display:none; }
+#layerPanel { top:100px; right:20px; }
 </style>
 </head>
 
@@ -67,169 +48,157 @@ input { margin:2px; }
 
 <div class="topbar">
   🔍 <input id="searchBox" placeholder="Find location">
+  <button class="btn" onclick="searchLocation()">Search</button>
 
   <button class="btn" onclick="toggle('inputPanel')">Input Point</button>
-  <button class="btn" onclick="toggle('uploadPanel')">My Location</button>
-
-  <button class="btn" onclick="toggleLayer()">Layer</button>
-  <button class="btn" onclick="toggle('miniMapPanel')">Mini Map</button>
-  <button class="btn" onclick="toggle('legend')">Legend</button>
-  <button class="btn" onclick="toggle('helpPanel')">Info</button>
-
+  <button class="btn" onclick="toggleBasemap()">Basemap</button>
+  <button class="btn" onclick="toggle('layerPanel')">Layer</button>
+  <button class="btn" onclick="toggle('minimapPanel')">Mini Map</button>
   <button class="btn" onclick="resetAll()">Reset</button>
 </div>
 
 <div id="map"></div>
 
-<!-- INPUT PANEL -->
-<div id="inputPanel" class="panel" style="top:80px; left:250px; display:none;">
-<b>Decimal</b><br>
+<!-- INPUT -->
+<div id="inputPanel" class="panel" style="top:100px; left:200px; display:none;">
 Lat <input id="lat"> Lng <input id="lng">
 <button onclick="addMarker()">OK</button>
-
-<hr>
-<b>DMS</b><br>
-<select id="latDir"><option value="1">N</option><option value="-1">S</option></select>
-<input id="latDeg" size="2">°
-<input id="latMin" size="2">'
-<input id="latSec" size="2">"<br>
-
-<select id="lngDir"><option value="1">E</option><option value="-1">W</option></select>
-<input id="lngDeg" size="2">°
-<input id="lngMin" size="2">'
-<input id="lngSec" size="2">"<br>
-
-<button onclick="addDMS()">OK DMS</button>
 </div>
 
-<!-- UPLOAD -->
-<div id="uploadPanel" class="panel" style="top:80px; left:450px; display:none;">
-CSV <input type="file" id="csv"><button onclick="loadCSV()">Load</button><br>
-GeoJSON <input type="file" id="geojson"><button onclick="loadGeoJSON()">Load</button>
+<!-- LAYER -->
+<div id="layerPanel" class="panel">
+<b>Layer</b><br>
+<label><input type="checkbox" checked onchange="toggleLayerGeo('KAW')"> KAW</label><br>
+<label><input type="checkbox" checked onchange="toggleLayerGeo('Prov')"> Perairan</label>
 </div>
 
 <!-- LEGEND -->
-<div id="legend" class="panel legend">
-<b>Legenda</b><br>
-<div><span style="background:blue;width:12px;height:12px;display:inline-block"></span> KSN</div>
-<div><span style="background:red;width:12px;height:12px;display:inline-block"></span> KPBPB</div>
-</div>
+<div id="legend" class="panel"></div>
 
 <!-- MINIMAP -->
-<div id="miniMapPanel" class="panel minimap"></div>
-
-<!-- HELP -->
-<div id="helpPanel" class="panel help">
-<b>Guide</b><br>
-- Search lokasi<br>
-- Input DD / DMS<br>
-- Upload CSV / GeoJSON<br>
-- Gunakan draw untuk digitasi<br>
-</div>
+<div id="minimapPanel" class="panel"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
-<script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.js"></script>
 
 <script>
 
-// BASE MAP
+// ================= MAP =================
 const map = L.map('map').setView([-2.5,118],5);
+
+// basemap
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
 let currentBase = osm;
 
-function toggleLayer(){
+function toggleBasemap(){
   map.removeLayer(currentBase);
-  currentBase = (currentBase===osm)?sat:osm;
+  currentBase = currentBase===osm ? sat : osm;
   map.addLayer(currentBase);
 }
 
-// SEARCH
-const geocoder = L.Control.geocoder().addTo(map);
+// scale bar
+L.control.scale().addTo(map);
 
-// MARKER STORAGE
-let drawnItems = new L.FeatureGroup().addTo(map);
+// ================= SEARCH (NOMINATIM) =================
+async function searchLocation(){
+  const q = document.getElementById('searchBox').value;
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}`);
+  const data = await res.json();
+  if(data.length){
+    map.setView([data[0].lat, data[0].lon], 12);
+  }
+}
 
-// DRAW TOOL
-const drawControl = new L.Control.Draw({
-  edit: { featureGroup: drawnItems },
-  draw: { polygon:true, polyline:true, rectangle:true, marker:true }
-});
-map.addControl(drawControl);
+// ================= DRAW =================
+const drawnItems = new L.FeatureGroup().addTo(map);
 
-map.on(L.Draw.Event.CREATED, e=>{
+map.addControl(new L.Control.Draw({
+  edit:{featureGroup:drawnItems},
+  draw:{polygon:true, polyline:true, marker:false}
+}));
+
+map.on('draw:created', e=>{
   drawnItems.addLayer(e.layer);
 });
 
-// MEASURE
-L.control.measure({
-  primaryLengthUnit: 'kilometers',
-  primaryAreaUnit: 'hectares'
-}).addTo(map);
-
-// MARKER
+// ================= INPUT POINT =================
 function addMarker(){
-  let lat = +lat.value, lng = +lng.value;
-  drawnItems.addLayer(L.marker([lat,lng]));
+  const lat = +lat.value;
+  const lng = +lng.value;
+  const m = L.marker([lat,lng]).addTo(drawnItems);
+  map.setView([lat,lng], 12);
 }
 
-// DMS
-function dms(d,m,s,dir){ return dir*(d+m/60+s/3600); }
-function addDMS(){
-  addMarker(
-    dms(+latDeg.value,+latMin.value,+latSec.value,+latDir.value),
-    dms(+lngDeg.value,+lngMin.value,+lngSec.value,+lngDir.value)
-  );
+// ================= GEOJSON LAYER =================
+const geoLayers = {
+  "KAW": L.geoJSON(null, {style:{color:'blue'}}),
+  "Prov": L.geoJSON(null, {style:{color:'red'}})
+};
+
+// contoh load (ganti URL kamu)
+fetch('07_KAW_simplified.json')
+.then(r=>r.json())
+.then(d=>geoLayers["KAW"].addData(d).addTo(map));
+
+fetch('06_Perairan_Prov_simplified.json')
+.then(r=>r.json())
+.then(d=>geoLayers["Prov"].addData(d).addTo(map));
+
+function toggleLayerGeo(name){
+  if(map.hasLayer(geoLayers[name])){
+    map.removeLayer(geoLayers[name]);
+  } else {
+    map.addLayer(geoLayers[name]);
+  }
+  updateLegend();
 }
 
-// CSV
-function loadCSV(){
-  let file = csv.files[0];
-  let r = new FileReader();
-  r.onload = e=>{
-    e.target.result.split("\n").forEach(l=>{
-      let [lat,lng]=l.split(",");
-      if(lat && lng) drawnItems.addLayer(L.marker([lat,lng]));
-    });
-  };
-  r.readAsText(file);
+// ================= LEGEND DINAMIS =================
+function updateLegend(){
+  let html = "<b>Legenda</b><br>";
+  if(map.hasLayer(geoLayers["KAW"])) html += "■ KAW<br>";
+  if(map.hasLayer(geoLayers["Prov"])) html += "■ Perairan<br>";
+  document.getElementById("legend").innerHTML = html;
 }
+updateLegend();
 
-// GEOJSON
-function loadGeoJSON(){
-  let file = geojson.files[0];
-  let r = new FileReader();
-  r.onload = e=>{
-    L.geoJSON(JSON.parse(e.target.result)).addTo(drawnItems);
-  };
-  r.readAsText(file);
-}
-
-// RESET
-function resetAll(){
-  drawnItems.clearLayers();
-}
-
-// TOGGLE PANEL
-function toggle(id){
-  let el = document.getElementById(id);
-  el.style.display = el.style.display==="none"?"block":"none";
-}
-
-// MINIMAP + EXTENT BOX
-const miniMap = L.map('miniMapPanel',{zoomControl:false, attributionControl:false})
+// ================= MINIMAP =================
+const miniMap = L.map('minimapPanel',{zoomControl:false, attributionControl:false})
 .setView([-2.5,118],3);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
 
-let rect = L.rectangle(map.getBounds(),{color:"red",weight:1}).addTo(miniMap);
+let rect = L.rectangle(map.getBounds(),{color:'red'}).addTo(miniMap);
 
 map.on('move', ()=>{
   miniMap.setView(map.getCenter(), map.getZoom()-2);
   rect.setBounds(map.getBounds());
 });
+
+// ================= RESET =================
+function resetAll(){
+  drawnItems.clearLayers();
+}
+
+// ================= DRAG PANEL =================
+document.querySelectorAll('.panel').forEach(el=>{
+  el.onmousedown = e=>{
+    let x = e.clientX - el.offsetLeft;
+    let y = e.clientY - el.offsetTop;
+    document.onmousemove = e=>{
+      el.style.left = e.clientX - x + "px";
+      el.style.top = e.clientY - y + "px";
+    };
+    document.onmouseup = ()=> document.onmousemove=null;
+  };
+});
+
+// ================= TOGGLE =================
+function toggle(id){
+  const el = document.getElementById(id);
+  el.style.display = el.style.display==="none"?"block":"none";
+}
 
 </script>
 
