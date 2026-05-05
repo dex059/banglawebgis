@@ -1,336 +1,252 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Informasi Spasial Bangunan dan Instalasi di Laut - Direktorat Jasa Bahari</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <style>
-    #map { height: 75vh; width: 100%; }
-    body { font-family: sans-serif; padding: 8px; }
-    
-    .legend {
-  position: fixed; /* lebih baik dari absolute untuk responsivitas */
-  bottom: 1rem;
-  left: 1rem;
-  z-index: 1000;
-  background: white;
-  padding: 6px 10px;
-  box-shadow: 0 0 5px rgba(0,0,0,0.3);
-  border-radius: 5px;
-  font-size: 0.75rem;
-  line-height: 1.2rem;
-  max-width: 90vw; /* agar tidak melebar di layar kecil */
-  overflow-wrap: break-word;
+<meta charset="utf-8">
+<title>SiBangLa WebGIS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
+
+<style>
+body { margin:0; font-family:sans-serif; }
+#map { height: 90vh; }
+
+/* TOP BAR */
+.topbar {
+  display:flex;
+  background:#3b6db3;
+  color:white;
+  padding:6px;
+  gap:10px;
+  align-items:center;
 }
-.legend i {
-  width: 14px;
-  height: 14px;
-  float: left;
-  margin-right: 8px;
-  margin-top: 2px;
-  opacity: 0.7;
+.topbar input, .topbar select {
+  padding:4px;
 }
 
-#legend-content {
-  transition: all 0.3s ease;
+/* PANEL */
+.panel {
+  position:absolute;
+  background:white;
+  padding:10px;
+  border-radius:6px;
+  box-shadow:0 0 6px rgba(0,0,0,0.3);
+  z-index:1000;
+  cursor:move;
 }
-    
-  </style>
 
-  
+/* LEGEND */
+.legend { bottom:20px; left:20px; }
+
+/* HELP */
+.help { top:80px; right:20px; display:none; }
+
+/* MINIMAP */
+.minimap {
+  width:200px;
+  height:150px;
+  top:80px;
+  left:20px;
+}
+
+/* DROPDOWN */
+.dropdown { display:none; background:white; padding:10px; }
+
+</style>
 </head>
+
 <body>
 
-<h2>Informasi Spasial Bangunan dan Instalasi di Laut - Direktorat Jasa Bahari</h2>
+<!-- TOPBAR -->
+<div class="topbar">
 
-<form onsubmit="addMarker(); return false;">
-  <label>Lat DD: <input type="number" step="any" id="latInput" required></label>
-  <label>Long DD: <input type="number" step="any" id="lngInput" required></label>
-  <button type="submit">Tampilkan Titik Decimal Degrees</button>
-</form>
-  
+  🔍 <input type="text" id="searchBox" placeholder="Find location">
 
-  
-<form onsubmit="addDMSMarker(); return false;">
-  <label>
-    Lat DMS:
-    <select id="latDir">
-      <option value="1">N</option>
-      <option value="-1">S</option>
-    </select>
-    <input type="number" id="latDeg" placeholder="°" style="width:50px" required>°
-    <input type="number" id="latMin" placeholder="′" style="width:50px" required>'
-    <input type="number" step="any" id="latSec" placeholder="″" style="width:50px" required>"
-  </label>
-  
-  <label>
-    Lon DMS:
-    <select id="lngDir">
-      <option value="1">E</option>
-      <option value="-1">W</option>
-    </select>
-    <input type="number" id="lngDeg" placeholder="°" style="width:50px" required>°
-    <input type="number" id="lngMin" placeholder="′" style="width:50px" required>'
-    <input type="number" step="any" id="lngSec" placeholder="″" style="width:50px" required>"
-  </label>
-  <button type="submit">Tampilkan Titik DMS</button>
-</form>
+  ▶ Input Point
+  <button onclick="toggle('inputPanel')">▼</button>
 
-  
-<p>
-  <label>Upload CSV Titik:
-    <input type="file" id="csvFile" accept=".csv">
-  </label>
-  <button onclick="loadCSV()">Tampilkan CSV</button>
-  <button onclick="clearAllMarkers()">🗑️ Hapus Semua Titik</button>
-  <button onclick="resetToIndonesia()">🧱 Pusatkan ke Indonesia</button>
-  <button onclick="zoomToPoligon()">📐 Zoom Semua Poligon</button>
-  <button onclick="zoomToMarker()">📍 Zoom Semua Titik</button>
-</p>
+  ▶ My Location
+  <button onclick="toggle('uploadPanel')">▼</button>
 
+  <button onclick="toggle('miniMapPanel')">Mini Map</button>
+  <button onclick="toggle('legend')">Legend</button>
+  <button onclick="toggle('helpPanel')">Info/Help</button>
+
+</div>
+
+<!-- MAP -->
 <div id="map"></div>
-<div id="legend" class="legend"></div>
-  
+
+<!-- INPUT PANEL -->
+<div id="inputPanel" class="panel" style="top:80px; left:250px; display:none;">
+
+  <b>Decimal Degree</b><br>
+  Lat: <input id="lat"><br>
+  Lng: <input id="lng"><br>
+  <button onclick="addMarker()">Tambah</button>
+
+  <hr>
+
+  <b>DMS</b><br>
+  Lat:
+  <select id="latDir"><option value="1">N</option><option value="-1">S</option></select>
+  <input id="latDeg" size="3">°
+  <input id="latMin" size="3">' 
+  <input id="latSec" size="3">"<br>
+
+  Lng:
+  <select id="lngDir"><option value="1">E</option><option value="-1">W</option></select>
+  <input id="lngDeg" size="3">°
+  <input id="lngMin" size="3">' 
+  <input id="lngSec" size="3">"<br>
+
+  <button onclick="addDMS()">Tambah DMS</button>
+
+</div>
+
+<!-- UPLOAD PANEL -->
+<div id="uploadPanel" class="panel" style="top:80px; left:450px; display:none;">
+
+  <b>Upload CSV</b><br>
+  <input type="file" id="csv"><br>
+  <button onclick="loadCSV()">Load</button>
+
+  <hr>
+
+  <b>Upload GeoJSON</b><br>
+  <input type="file" id="geojson"><br>
+  <button onclick="loadGeoJSON()">Load</button>
+
+</div>
+
+<!-- LEGEND -->
+<div id="legend" class="panel legend">
+<b>Legenda</b><br>
+<div><span style="background:red;width:12px;height:12px;display:inline-block"></span> KPBPB</div>
+<div><span style="background:blue;width:12px;height:12px;display:inline-block"></span> KSN</div>
+</div>
+
+<!-- MINIMAP -->
+<div id="miniMapPanel" class="panel minimap"></div>
+
+<!-- HELP -->
+<div id="helpPanel" class="panel help">
+<b>Info Penggunaan</b><br>
+- Search lokasi pakai kolom atas<br>
+- Input titik via DD atau DMS<br>
+- Upload CSV format: lat,lng<br>
+- GeoJSON bisa point/area<br>
+</div>
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
 <script>
-  const map = L.map('map').setView([-2.5, 118], 5);
 
-  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-  });
+const map = L.map('map').setView([-2.5,118],5);
 
-  const satelit = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/' +
-    'World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: '© Esri'
-  });
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-  osm.addTo(map);
-  const baseLayers = { "OpenStreetMap": osm, "Satelit": satelit };
-  const layerControl = L.control.layers(baseLayers).addTo(map);
-  
-  const iconCustom = L.icon({
-    iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
-    iconSize: [30, 30],
-    iconAnchor: [15, 30],
-    popupAnchor: [0, -30]
-  });
+// SEARCH NOMINATIM
+const geocoder = L.Control.geocoder({ defaultMarkGeocode:false })
+.on('markgeocode', function(e) {
+  map.fitBounds(e.geocode.bbox);
+}).addTo(map);
 
-  let allMarkers = [];
-  const geojsonLayers = {};  // menyimpan semua layer GeoJSON yang sudah dimuat
-
-  function addMarker(lat = null, lng = null) {
-    lat = lat ?? parseFloat(document.getElementById("latInput").value);
-    lng = lng ?? parseFloat(document.getElementById("lngInput").value);
-
-    const marker = L.marker([lat, lng], {
-      icon: iconCustom,
-      draggable: true
-    }).addTo(map).bindPopup(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`).openPopup();
-
-    marker.on('dragend', () => {
-      const pos = marker.getLatLng();
-      marker.setPopupContent(`Lat: ${pos.lat.toFixed(6)}, Lng: ${pos.lng.toFixed(6)}`);
-    });
-
-    allMarkers.push(marker);
-    map.setView([lat, lng], 10);
-  }
-
-function dmsToDecimal(deg, min, sec, dir) {
-  return dir * (Math.abs(deg) + (min / 60) + (sec / 3600));
-}
-
-function addDMSMarker() {
-  const lat = dmsToDecimal(
-    parseFloat(document.getElementById('latDeg').value),
-    parseFloat(document.getElementById('latMin').value),
-    parseFloat(document.getElementById('latSec').value),
-    parseFloat(document.getElementById('latDir').value)
-  );
-  const lng = dmsToDecimal(
-    parseFloat(document.getElementById('lngDeg').value),
-    parseFloat(document.getElementById('lngMin').value),
-    parseFloat(document.getElementById('lngSec').value),
-    parseFloat(document.getElementById('lngDir').value)
-  );
-  addMarker(lat, lng);
-}
-
-  
-  function clearAllMarkers() {
-    allMarkers.forEach(m => map.removeLayer(m));
-    allMarkers = [];
-  }
-
-  map.on('click', e => {
-    const { lat, lng } = e.latlng;
-    document.getElementById('latInput').value = lat.toFixed(6);
-    document.getElementById('lngInput').value = lng.toFixed(6);
-    addMarker(lat, lng);
-  });
-
-  function loadCSV() {
-    const file = document.getElementById('csvFile').files[0];
-    if (!file) return alert("Pilih file .csv dulu.");
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const lines = e.target.result.split('\n');
-      lines.forEach(line => {
-        const [latStr, lngStr] = line.trim().split(',');
-        const lat = parseFloat(latStr), lng = parseFloat(lngStr);
-        if (!isNaN(lat) && !isNaN(lng)) addMarker(lat, lng);
-      });
-    };
-    reader.readAsText(file);
-  }
-
-  function loadGeoJSON() {
-    const file = document.getElementById('geojsonFile').files[0];
-    if (!file) return alert("Pilih file GeoJSON.");
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const data = JSON.parse(e.target.result);
-      if (!data || !data.features) return alert("Format tidak valid.");
-      data.features.forEach(f => {
-        if (f.geometry.type === "Point") {
-          const [lng, lat] = f.geometry.coordinates;
-          addMarker(lat, lng);
-        }
-      });
-    };
-    reader.readAsText(file);
-  }
-
-  function downloadGeoJSON() {
-    const features = allMarkers.map(m => {
-      const { lat, lng } = m.getLatLng();
-      return {
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [lng, lat] },
-        properties: { popup: m.getPopup()?.getContent() || "" }
-      };
-    });
-    const geojson = { type: "FeatureCollection", features };
-    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "titik.geojson";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  const orderedLayers = [
-
-    ['07_KAW_simplified.json', 'KAW', 'LightSkyBlue'],
-    ['06_Perairan_Prov_simplified.json', 'Perairan Provinsi', 'Salmon'],
-    ['05_KSN_Penetapan.json', 'KSN sudah penetapan', 'RoyalBlue'],
-    ['04_KSN_BBK.json', 'KSN BBK (belum penetapan)', 'Plum'],
-    ['03_KKPN.json', 'Kawasan Konservasi Nasional', 'green'],
-    ['02_Wilper_KSNT_PPKT.json', 'Wilper KSNT PPKT', 'SteelBlue'],
-    ['01_Delineasi_KPBPB.json', 'KPBPB', 'indianred']
-  ];
-
-  // Promise.all: pastikan semua layer ter-fetch sebelum ditambahkan
-  Promise.all(
-    orderedLayers.map(([url, name, color]) => {
-      return fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          const layer = L.geoJSON(data, {
-            style: { color, fillColor: color, fillOpacity: 0.4, weight: 0.8 },
-            onEachFeature: (feature, layer) => {
-              const props = feature.properties;
-              const popupContent = Object.entries(props)
-                .map(([key, value]) => `<strong>${key}</strong>: ${value}`)
-                .join('<br>');
-              layer.bindPopup(`<strong>Layer:</strong> ${name}<br>` + popupContent);
-            }
-          });
-          geojsonLayers[name] = layer;
-        });
-    })
-  ).then(() => {
-    orderedLayers.forEach(([_, name]) => {
-      const layer = geojsonLayers[name];
-      if (layer) {
-        layer.addTo(map);
-        layerControl.addOverlay(layer, name);
+// manual trigger search
+document.getElementById("searchBox").addEventListener("keydown", e=>{
+  if(e.key==="Enter"){
+    geocoder.options.geocoder.geocode(e.target.value, res=>{
+      if(res.length){
+        map.fitBounds(res[0].bbox);
       }
     });
-  });
-
-  function resetToIndonesia() {
-    map.setView([-2.5, 118], 5);
-  }
-
-  function zoomToPoligon() {
-    const allPoligonBounds = [];
-    map.eachLayer(layer => {
-      if (layer instanceof L.GeoJSON && layer.getBounds) {
-        allPoligonBounds.push(layer.getBounds());
-      }
-    });
-
-    if (allPoligonBounds.length > 0) {
-      let bounds = allPoligonBounds[0];
-      for (let i = 1; i < allPoligonBounds.length; i++) {
-        bounds.extend(allPoligonBounds[i]);
-      }
-      map.fitBounds(bounds);
-    } else {
-      alert("Belum ada layer poligon yang dimuat.");
-    }
-  }
-
-  function zoomToMarker() {
-    if (allMarkers.length === 0) {
-      alert("Belum ada marker titik.");
-      return;
-    }
-    const latlngs = allMarkers.map(m => m.getLatLng());
-    const bounds = L.latLngBounds(latlngs);
-    map.fitBounds(bounds);
-  }
-
-// Tambah legenda
-  const legendData = [
-    ['KAW', 'LightSkyBlue'],
-    ['Perairan Provinsi', 'Salmon'],
-    ['KSN sudah penetapan', 'RoyalBlue'],
-    ['KSN BBK (belum penetapan)', 'Plum'],
-    ['Kawasan Konservasi Nasional', 'green'],
-    ['Wilper KSNT PPKT', 'SteelBlue'],
-    ['KPBPB', 'indianred']
-  ];
-
-  const legendDiv = document.getElementById('legend');
-   legendDiv.innerHTML = `
-  <div id="legend-header" style="cursor:pointer; font-weight:bold; margin-bottom:4px;">
-    ▾ Legenda
-  </div>
-  <div id="legend-content">
-    ${legendData.map(([label, color]) =>
-      `<i style="background:${color}"></i>${label}`
-    ).join('<br>')}
-  </div>
-`;
-
-  document.getElementById('legend-header').addEventListener('click', () => {
-  const content = document.getElementById('legend-content');
-  const header = document.getElementById('legend-header');
-  if (content.style.display === 'none') {
-    content.style.display = 'block';
-    header.innerHTML = '▾ Legenda';
-  } else {
-    content.style.display = 'none';
-    header.innerHTML = '▸ Legenda';
   }
 });
-  
+
+// MARKER
+function addMarker(){
+  let lat = parseFloat(document.getElementById("lat").value);
+  let lng = parseFloat(document.getElementById("lng").value);
+  L.marker([lat,lng]).addTo(map);
+}
+
+// DMS
+function dms(deg,min,sec,dir){
+  return dir*(deg + min/60 + sec/3600);
+}
+function addDMS(){
+  let lat = dms(
+    +latDeg.value, +latMin.value, +latSec.value, +latDir.value
+  );
+  let lng = dms(
+    +lngDeg.value, +lngMin.value, +lngSec.value, +lngDir.value
+  );
+  L.marker([lat,lng]).addTo(map);
+}
+
+// CSV
+function loadCSV(){
+  let file = document.getElementById("csv").files[0];
+  let reader = new FileReader();
+  reader.onload = e=>{
+    e.target.result.split("\n").forEach(l=>{
+      let [lat,lng]=l.split(",");
+      if(lat && lng) L.marker([lat,lng]).addTo(map);
+    });
+  };
+  reader.readAsText(file);
+}
+
+// GEOJSON
+function loadGeoJSON(){
+  let file = document.getElementById("geojson").files[0];
+  let reader = new FileReader();
+  reader.onload = e=>{
+    L.geoJSON(JSON.parse(e.target.result)).addTo(map);
+  };
+  reader.readAsText(file);
+}
+
+// TOGGLE PANEL
+function toggle(id){
+  let el = document.getElementById(id);
+  el.style.display = (el.style.display==="none")?"block":"none";
+}
+
+// DRAG PANEL
+document.querySelectorAll(".panel").forEach(el=>{
+  el.onmousedown = function(e){
+    let shiftX = e.clientX - el.getBoundingClientRect().left;
+    let shiftY = e.clientY - el.getBoundingClientRect().top;
+    function moveAt(pageX, pageY){
+      el.style.left = pageX - shiftX + 'px';
+      el.style.top = pageY - shiftY + 'px';
+    }
+    function onMouseMove(e){
+      moveAt(e.pageX, e.pageY);
+    }
+    document.addEventListener('mousemove', onMouseMove);
+    document.onmouseup = ()=>{
+      document.removeEventListener('mousemove', onMouseMove);
+    };
+  };
+});
+
+// MINIMAP
+const miniMap = L.map('miniMapPanel',{
+  attributionControl:false,
+  zoomControl:false
+}).setView([-2.5,118],3);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+.addTo(miniMap);
+
+map.on('move', ()=>{
+  miniMap.setView(map.getCenter(), map.getZoom()-2);
+});
+
 </script>
 
 </body>
