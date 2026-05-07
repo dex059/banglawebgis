@@ -77,7 +77,15 @@ body { margin:0; font-family:Segoe UI; }
   resize: both;
   overflow: auto;
 }
-
+#layerPanel {
+  resize: both;
+  overflow: auto;
+}
+#legend {
+  resize: both;
+  overflow: auto;
+}
+  
 /* dropdown */
 .dropdown {
   position:fixed;
@@ -209,8 +217,10 @@ const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
 const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
 osm.addTo(map);
 const bathy = L.tileLayer(
-  'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
-  { attribution: '© OpenSeaMap' }
+  'https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.png',
+  {
+    attribution: '© Stadia Maps'
+  }
 );
 
 // SCALE (lebih panjang)
@@ -233,7 +243,7 @@ compass.onAdd = function(){
   `;
 
   div.style.background = "transparent";
-  div.style.marginBottom = "40px";
+  div.style.marginBottom = "20px";
 
   return div;
 };
@@ -284,17 +294,23 @@ map.on(L.Draw.Event.CREATED, e=>{
 function addMarkerDD(){
   const lat=+latInput.value,lng=+lngInput.value;
   if(!lat||!lng) return;
+
   L.marker([lat,lng]).addTo(drawnItems);
   map.setView([lat,lng],12);
-}
+
+  // tutup dropdown/panel
+  document.getElementById("inputPanel").style.display = "none";
 
 function dms(d,m,s,dir){return dir*(Math.abs(d)+(m/60)+(s/3600));}
 
 function addMarkerDMS(){
   const lat=dms(+latDeg.value,+latMin.value,+latSec.value,+latDir.value);
   const lng=dms(+lngDeg.value,+lngMin.value,+lngSec.value,+lngDir.value);
+
   L.marker([lat,lng]).addTo(drawnItems);
   map.setView([lat,lng],12);
+
+  document.getElementById("inputPanel").style.display = "none";
 }
 
 // UPLOAD
@@ -318,6 +334,7 @@ function loadCSV(){
     }
   };
   r.readAsText(file);
+  document.getElementById("uploadPanel").style.display = "none";
 }
 
 function loadGeoJSON(){
@@ -334,6 +351,7 @@ function loadGeoJSON(){
     }
   };
   r.readAsText(file);
+  document.getElementById("uploadPanel").style.display = "none";
 }
 
 // BASEMAP MENU
