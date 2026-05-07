@@ -68,12 +68,35 @@ body { margin:0; font-family:Segoe UI; }
 .panel-body { padding:10px; }
 
 /* posisi */
-#legend { top:350px; left:20px; }
-#layerPanel { top:100px; left:250px; }
-#inputPanel { top:100px; left:480px; }
-#uploadPanel { top:100px; left:720px; }
-#minimapPanel { top:350px; left:250px; }
+#minimapPanel { top:100px; right:20px; left:auto; }
+#layerPanel { top:250px; right:20px; left:auto; }
+#legend { top:400px; right:20px; left:auto; }
 
+/* resizeable panel */
+#minimapPanel {
+  resize: both;
+  overflow: auto;
+}
+
+/* dropdown */
+.dropdown {
+  position:absolute;
+  top:70px;
+  left:10px;
+  background:white;
+  padding:10px;
+  border-radius:6px;
+  display:none;
+  z-index:1000;
+}  
+
+/* no overflow */
+.panel {
+  max-width:90vw;
+  max-height:80vh;
+  overflow:auto;
+}
+  
 </style>
 </head>
 
@@ -103,7 +126,7 @@ body { margin:0; font-family:Segoe UI; }
 <div id="map"></div>
 
 <!-- INPUT -->
-<div id="inputPanel" class="panel">
+<div id="inputPanel" class="dropdown">
 <div class="panel-header">Input Point</div>
 <div class="panel-body">
 
@@ -133,7 +156,7 @@ Lng:
 </div>
 
 <!-- UPLOAD -->
-<div id="uploadPanel" class="panel">
+<div id="uploadPanel" class="dropdown">
 <div class="panel-header">My Location</div>
 <div class="panel-body">
 CSV <input type="file" id="csvFile"><br>
@@ -186,13 +209,20 @@ const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Wo
 osm.addTo(map);
 
 // SCALE (lebih panjang)
-L.control.scale({maxWidth:200}).addTo(map);
+L.control.scale({
+  maxWidth:200,
+  metric:true,
+  imperial:false
+}).addTo(map);
 
 // COMPASS (clean)
 const compass = L.control({position:"bottomleft"});
 compass.onAdd = function(){
   const div = L.DomUtil.create("div");
-  div.innerHTML = "🧭";
+  div.innerHTML = `
+  <img src="https://png.pngtree.com/png-clipart/20230305/original/pngtree-beautiful-compass-icon-vector-illustration-png-image_8973925.png" 
+       style="width:40px; height:40px;">
+`;
   div.style.background="white";
   div.style.padding="5px";
   div.style.marginBottom="30px";
@@ -262,10 +292,17 @@ function addMarkerDMS(){
 function loadCSV(){
   const r=new FileReader();
   r.onload=e=>{
+    const latlngs=[];
     e.target.result.split("\n").forEach(l=>{
       const [lat,lng]=l.split(",");
-      if(lat&&lng) L.marker([+lat,+lng]).addTo(drawnItems);
+      if(lat && lng){
+        const m = L.marker([+lat,+lng]).addTo(drawnItems);
+        latlngs.push(m.getLatLng());
+      }
     });
+    if(latlngs.length){
+      map.fitBounds(L.latLngBounds(latlngs));
+    }
   };
   r.readAsText(csvFile.files[0]);
 }
@@ -282,9 +319,26 @@ function loadGeoJSON(){
 
 // BASEMAP MENU
 layerList.innerHTML = `
-<b>Basemap</b><br>
-<input type="radio" name="bm" checked onclick="map.addLayer(osm);map.removeLayer(sat)"> OSM<br>
-<input type="radio" name="bm" onclick="map.addLayer(sat);map.removeLayer(osm)"> Satellite<br>
+<b>Layer & Basemap</b><br>
+
+<input type="radio" name="bm" checked onclick="
+map.addLayer(osm);
+map.removeLayer(sat);
+map.removeLayer(ocean);
+"> OSM<br>
+
+<input type="radio" name="bm" onclick="
+map.addLayer(sat);
+map.removeLayer(osm);
+map.removeLayer(ocean);
+"> Satellite<br>
+
+<input type="radio" name="bm" onclick="
+map.addLayer(ocean);
+map.removeLayer(osm);
+map.removeLayer(sat);
+"> Bathymetry<br>
+
 <hr>
 <b>Layer (coming soon)</b>
 `;
@@ -309,14 +363,43 @@ function resetAll(){ drawnItems.clearLayers(); }
 // DRAG
 document.querySelectorAll('.panel').forEach(el=>{
   const h=el.querySelector('.panel-header');
-  h.onmousedown=e=>{
-    let x=e.clientX-el.offsetLeft,y=e.clientY-el.offsetTop;
-    document.onmousemove=e=>{
-      el.style.left=(e.clientX-x)+"px";
-      el.style.top=(e.clientY-y)+"px";
-    };
-    document.onmouseup=()=>document.onmousemove=null;
-  };
+
+  h.onmousedown = startDrag;
+  h.ontouchstart = startDrag;
+
+  function startDrag(e){
+    const isTouch = e.type === "touchstart";
+    const startX = isTouch ? e.touches[0].clientX : e.clientX;
+    const startY = isTouch ? e.touches[0].clientY : e.clientY;
+
+    let x = startX - el.offsetLeft;
+    let y = startY - el.offsetTop;
+
+    function move(e){
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      let left = clientX - x;
+      let top = clientY - y;
+
+      // batas layar
+      left = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, left));
+      top = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, top));
+
+      el.style.left = left + "px";
+      el.style.top = top + "px";
+    }
+
+    function stop(){
+      document.onmousemove = null;
+      document.ontouchmove = null;
+    }
+
+    document.onmousemove = move;
+    document.ontouchmove = move;
+    document.onmouseup = stop;
+    document.ontouchend = stop;
+  }
 });
 
 </script>
