@@ -80,15 +80,16 @@ body { margin:0; font-family:Segoe UI; }
 
 /* dropdown */
 .dropdown {
-  position:absolute;
-  top:70px;
-  left:10px;
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
   background:white;
-  padding:10px;
-  border-radius:6px;
-  display:none;
+  padding:12px;
+  border-radius:8px;
   z-index:1000;
-}  
+  box-shadow:0 4px 10px rgba(0,0,0,0.3);
+} 
 
 /* no overflow */
 .panel {
@@ -113,7 +114,7 @@ body { margin:0; font-family:Segoe UI; }
 
   <button class="btn" onclick="toggle('inputPanel')">Input Point</button>
   <button class="btn" onclick="toggle('uploadPanel')">My Location</button>
-  <button class="btn" onclick="toggle('layerPanel')">Layers</button>
+  <button class="btn" onclick="toggle('layerPanel')">Layers & Basemap</button>
   <button class="btn" onclick="toggle('legend')">Legend</button>
   <button class="btn" onclick="toggle('minimapPanel')">Mini Map</button>
 
@@ -207,6 +208,10 @@ const map = L.map('map').setView([-2.5,118],5);
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
 const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
 osm.addTo(map);
+const bathy = L.tileLayer(
+  'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
+  { attribution: '© OpenSeaMap' }
+);
 
 // SCALE (lebih panjang)
 L.control.scale({
@@ -219,13 +224,17 @@ L.control.scale({
 const compass = L.control({position:"bottomleft"});
 compass.onAdd = function(){
   const div = L.DomUtil.create("div");
+
   div.innerHTML = `
-  <img src="https://png.pngtree.com/png-clipart/20230305/original/pngtree-beautiful-compass-icon-vector-illustration-png-image_8973925.png" 
-       style="width:40px; height:40px;">
-`;
-  div.style.background="white";
-  div.style.padding="5px";
-  div.style.marginBottom="30px";
+  <svg width="70" height="70" viewBox="0 0 100 100">
+    <polygon points="50,5 60,50 50,45 40,50" fill="black"/>
+    <text x="50" y="90" text-anchor="middle" font-size="20" font-weight="bold">N</text>
+  </svg>
+  `;
+
+  div.style.background = "transparent";
+  div.style.marginBottom = "40px";
+
   return div;
 };
 compass.addTo(map);
@@ -290,59 +299,62 @@ function addMarkerDMS(){
 
 // UPLOAD
 function loadCSV(){
-  const r=new FileReader();
-  r.onload=e=>{
-    const latlngs=[];
-    e.target.result.split("\n").forEach(l=>{
-      const [lat,lng]=l.split(",");
-      if(lat && lng){
+  const file = document.getElementById("csvFile").files[0];
+  if(!file) return alert("Pilih file CSV dulu");
+
+  const r = new FileReader();
+  r.onload = e => {
+    const bounds = [];
+    e.target.result.split("\n").forEach(line=>{
+      const [lat,lng] = line.trim().split(",");
+      if(!isNaN(lat) && !isNaN(lng)){
         const m = L.marker([+lat,+lng]).addTo(drawnItems);
-        latlngs.push(m.getLatLng());
+        bounds.push([+lat,+lng]);
       }
     });
-    if(latlngs.length){
-      map.fitBounds(L.latLngBounds(latlngs));
+
+    if(bounds.length){
+      map.fitBounds(bounds);
     }
   };
-  r.readAsText(csvFile.files[0]);
+  r.readAsText(file);
 }
 
 function loadGeoJSON(){
-  const r=new FileReader();
-  r.onload=e=>{
-    const layer=L.geoJSON(JSON.parse(e.target.result));
-    drawnItems.addLayer(layer);
-    map.fitBounds(layer.getBounds());
+  const file = document.getElementById("geojsonFile").files[0];
+  if(!file) return alert("Pilih file GeoJSON");
+
+  const r = new FileReader();
+  r.onload = e=>{
+    const data = JSON.parse(e.target.result);
+    const layer = L.geoJSON(data).addTo(drawnItems);
+
+    if(layer.getBounds().isValid()){
+      map.fitBounds(layer.getBounds());
+    }
   };
-  r.readAsText(geojsonFile.files[0]);
+  r.readAsText(file);
 }
 
 // BASEMAP MENU
-layerList.innerHTML = `
-<b>Layer & Basemap</b><br>
+layerList.innerHTML =
+  '<b>Basemap</b><br>' +
+  '<input type="radio" name="bm" checked onclick="setBasemap(\'osm\')"> OSM<br>' +
+  '<input type="radio" name="bm" onclick="setBasemap(\'sat\')"> Satellite<br>' +
+  '<input type="radio" name="bm" onclick="setBasemap(\'bathy\')"> Bathymetry<br>' +
+  '<hr>' +
+  '<b>Layer (coming soon)</b>';
 
-<input type="radio" name="bm" checked onclick="
-map.addLayer(osm);
-map.removeLayer(sat);
-map.removeLayer(ocean);
-"> OSM<br>
+function setBasemap(type){
+  map.removeLayer(osm);
+  map.removeLayer(sat);
+  map.removeLayer(bathy);
 
-<input type="radio" name="bm" onclick="
-map.addLayer(sat);
-map.removeLayer(osm);
-map.removeLayer(ocean);
-"> Satellite<br>
-
-<input type="radio" name="bm" onclick="
-map.addLayer(ocean);
-map.removeLayer(osm);
-map.removeLayer(sat);
-"> Bathymetry<br>
-
-<hr>
-<b>Layer (coming soon)</b>
-`;
-
+  if(type==='osm') map.addLayer(osm);
+  if(type==='sat') map.addLayer(sat);
+  if(type==='bathy') map.addLayer(bathy);
+}
+  
 // MINIMAP
 const miniMap=L.map('miniMap',{zoomControl:false,attributionControl:false});
 miniMap.setView([-2.5,118],3);
@@ -350,6 +362,13 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap)
 
 let rect=L.rectangle(map.getBounds(),{color:'red',weight:2,fill:false}).addTo(miniMap);
 map.on('move',()=>rect.setBounds(map.getBounds()));
+
+setTimeout(()=>miniMap.invalidateSize(),500);
+
+map.on('move',()=>{
+  rect.setBounds(map.getBounds());
+  miniMap.invalidateSize();
+});
 
 // UI
 function toggle(id){
