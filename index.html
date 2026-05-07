@@ -294,13 +294,14 @@ map.on(L.Draw.Event.CREATED, e=>{
 // INPUT
 function addMarkerDD(){
   const lat=+latInput.value,lng=+lngInput.value;
-  if(!lat||!lng) return;
+  if(isNaN(lat) || isNaN(lng)) return;
 
   L.marker([lat,lng]).addTo(drawnItems);
   map.setView([lat,lng],12);
 
   // tutup dropdown/panel
   document.getElementById("inputPanel").style.display = "none";
+}
 
 function dms(d,m,s,dir){return dir*(Math.abs(d)+(m/60)+(s/3600));}
 
@@ -389,6 +390,9 @@ map.on('move',()=>{
   miniMap.invalidateSize();
 });
 
+new ResizeObserver(() => miniMap.invalidateSize())
+  .observe(document.getElementById("miniMap"));
+  
 // UI
 function toggle(id){
   const el=document.getElementById(id);
