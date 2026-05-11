@@ -268,6 +268,233 @@ const baseLayers = [
   oceanRef,
   worldOcean
 ];
+
+// ======================
+// STYLE KLASIFIKASI
+// ======================
+
+const banglaStyle = {
+
+  "hunian":{
+    fill:"#7B1FA2",
+    outline:"#212121",
+    icon:"#FFFFFF"
+  },
+
+  "perikanan":{
+    fill:"#19A1D2",
+    outline:"#212121",
+    icon:"#FFFFFF"
+  },
+
+  "pergaraman":{
+    fill:"#F5F5F5",
+    outline:"#616161",
+    icon:"#000000"
+  },
+
+  "wisata bahari":{
+    fill:"#00BCD4",
+    outline:"#212121",
+    icon:"#000000"
+  },
+
+  "pelayaran":{
+    fill:"#1565C0",
+    outline:"#212121",
+    icon:"#FFFFFF"
+  },
+
+  "perhubungan darat":{
+    fill:"#8D6E63",
+    outline:"#212121",
+    icon:"#FFFFFF"
+  },
+
+  "telekomunikasi":{
+    fill:"#C2185B",
+    outline:"#212121",
+    icon:"#FFFFFF"
+  },
+
+  "pengamanan pantai":{
+    fill:"#757575",
+    outline:"#212121",
+    icon:"#FFFFFF"
+  },
+
+  "migas":{
+    fill:"#212121",
+    outline:"#BDBDBD",
+    icon:"#FFFFFF"
+  },
+
+  "pertambangan":{
+    fill:"#6D4C41",
+    outline:"#212121",
+    icon:"#FFFFFF"
+  },
+
+  "ketenagalistrikan":{
+    fill:"#F9A825",
+    outline:"#212121",
+    icon:"#000000"
+  },
+
+  "data & penelitian":{
+    fill:"#42A5F5",
+    outline:"#212121",
+    icon:"#FFFFFF"
+  },
+
+  "pertahanan":{
+    fill:"#B71C1C",
+    outline:"#212121",
+    icon:"#FFFFFF"
+  },
+
+  "sumber daya air":{
+    fill:"#26C6DA",
+    outline:"#212121",
+    icon:"#000000"
+  },
+
+  "air laut non-energi":{
+    fill:"#00897B",
+    outline:"#212121",
+    icon:"#FFFFFF"
+  },
+
+  "belum diketahui":{
+    fill:"#90A4AE",
+    outline:"#212121",
+    icon:"#000000"
+  },
+
+    "belum teridentifikasi":{
+    fill:"#90A4AE",
+    outline:"#212121",
+    icon:"#000000"
+  },
+
+  "data lainnya":{
+    fill:"#90A4AE",
+    outline:"#212121",
+    icon:"#000000"
+  },
+
+};
+
+
+// ======================
+// GEOJSON LAYER
+// ======================
+
+const banglaLayer = L.geoJSON(null,{
+
+  // style polygon & line
+  style:function(feature){
+
+    const fungsi = feature.properties.fungsi;
+    const s = banglaStyle[fungsi] || banglaStyle["Lainnya"];
+
+    return {
+      color:s.outline,
+      weight:2,
+      fillColor:s.fill,
+      fillOpacity:0.7
+    };
+  },
+
+  // style point
+  pointToLayer:function(feature,latlng){
+
+    const jenis = feature.properties.fungsi;
+    const s = banglaStyle[jenis] || banglaStyle["Lainnya"];
+
+    return L.circleMarker(latlng,{
+      radius:7,
+      fillColor:s.fill,
+      color:s.outline,
+      weight:2,
+      opacity:1,
+      fillOpacity:1
+    });
+
+  },
+
+  // popup
+  onEachFeature:function(feature,layer){
+
+    let html = "";
+
+    if(feature.properties){
+
+      for(const key in feature.properties){
+
+        html += "<b>"+key+"</b>: "
+              + feature.properties[key]
+              + "<br>";
+
+      }
+
+    }
+
+    layer.bindPopup(html);
+
+  }
+
+});
+
+
+// ======================
+// LOAD GEOJSON
+// ======================
+
+fetch('folder/Bangla_2025_PT.geojson')
+
+.then(r=>r.json())
+
+.then(data=>{
+
+  banglaLayer.addData(data);
+
+});
+
+
+// ======================
+// TAMBAH KE MENU LAYER
+// ======================
+
+layerList.innerHTML +=
+  '<hr>' +
+  '<b>Operational Layer</b><br>' +
+  '<input type="checkbox" checked onclick="togglebanglaLayer(this)"> Bangunan dan Instalasi di Laut (2025)<br>';
+
+
+// ======================
+// TOGGLE LAYER
+// ======================
+
+function togglebanglaLayer(el){
+
+  if(el.checked){
+
+    map.addLayer(banglaLayer);
+
+  } else {
+
+    map.removeLayer(banglaLayer);
+
+  }
+
+}
+
+
+// tampil default
+banglaLayer.addTo(map);
+
+//End off layer part
   
 // SCALE (lebih panjang)
 L.control.scale({
