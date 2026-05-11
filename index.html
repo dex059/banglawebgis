@@ -69,8 +69,8 @@ body { margin:0; font-family:Segoe UI; }
 
 /* posisi */
 #minimapPanel { top:100px; right:20px; left:auto; }
-#layerPanel { top:250px; right:20px; left:auto; }
-#legend { top:400px; right:20px; left:auto; }
+#layerPanel { top:260px; right:20px; left:auto; }
+#legend { top:450px; right:20px; left:auto; }
 
 /* resizeable panel */
 #minimapPanel {
@@ -470,9 +470,23 @@ new ResizeObserver(() => miniMap.invalidateSize())
   
 // UI
 function toggle(id){
-  const el=document.getElementById(id);
-  el.style.display = el.style.display==="none"?"block":"none";
-  if(id==="minimapPanel") setTimeout(()=>miniMap.invalidateSize(),300);
+
+  const el = document.getElementById(id);
+
+  const current =
+    window.getComputedStyle(el).display;
+
+  if(current === "none"){
+    el.style.display = "block";
+  }else{
+    el.style.display = "none";
+  }
+
+  if(id==="minimapPanel"){
+    setTimeout(()=>{
+      miniMap.invalidateSize();
+    },300);
+  }
 }
 
 function resetAll(){ drawnItems.clearLayers(); }
