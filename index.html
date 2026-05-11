@@ -106,6 +106,23 @@ body { margin:0; font-family:Segoe UI; }
   max-height:80vh;
   overflow:auto;
 }
+
+/*draw*/
+.leaflet-touch .leaflet-div-icon{
+  width:8px !important;
+  height:8px !important;
+  margin-left:-4px !important;
+  margin-top:-4px !important;
+  border-radius:50%;
+  background:#ffffff;
+  border:2px solid #2f5fa7;
+}
+
+.leaflet-editing-icon{
+  width:8px !important;
+  height:8px !important;
+}
+
   
 </style>
 </head>
@@ -236,15 +253,22 @@ const oceanBase = L.tileLayer(
 const oceanRef = L.tileLayer(
 'https://services.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}'
 );
-
-oceanBase.addTo(map);
-oceanRef.addTo(map);
   
 const worldOcean = L.tileLayer(
   'https://services.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
   { attribution: '© Esri Ocean Basemap' }
 );
 
+const baseLayers = [
+  osm,
+  sat,
+  topomap,
+  voyager,
+  oceanBase,
+  oceanRef,
+  worldOcean
+];
+  
 // SCALE (lebih panjang)
 L.control.scale({
   maxWidth:200,
@@ -388,7 +412,6 @@ layerList.innerHTML =
   '<b>Basemap</b><br>' +
   '<input type="radio" name="bm" checked onclick="setBasemap(\'osm\')"> OSM<br>' +
   '<input type="radio" name="bm" onclick="setBasemap(\'sat\')"> Satellite<br>' +
-  '<input type="radio" name="bm" onclick="setBasemap(\'bathy\')"> Bathymetry<br>' +
   '<input type="radio" name="bm" onclick="setBasemap(\'topomap\')"> TopoMap<br>' +
   '<input type="radio" name="bm" onclick="setBasemap(\'voyager\')"> Voyager<br>' +
   '<input type="radio" name="bm" onclick="setBasemap(\'oceanBase\')"> OceanBase<br>' +
@@ -398,13 +421,36 @@ layerList.innerHTML =
   '<b>Layer (coming soon)</b>';
 
 function setBasemap(type){
-  map.removeLayer(osm);
-  map.removeLayer(sat);
-  map.removeLayer(bathy);
 
+  // hapus semua basemap dulu
+  baseLayers.forEach(layer=>{
+    if(map.hasLayer(layer)){
+      map.removeLayer(layer);
+    }
+  });
+
+  // aktifkan sesuai pilihan
   if(type==='osm') map.addLayer(osm);
-  if(type==='sat') map.addLayer(sat);
-  if(type==='bathy') map.addLayer(bathy);
+
+  if(type==='sat')
+    map.addLayer(sat);
+
+  if(type==='topomap')
+    map.addLayer(topomap);
+
+  if(type==='voyager')
+    map.addLayer(voyager);
+
+  if(type==='oceanBase')
+    map.addLayer(oceanBase);
+
+  if(type==='oceanRef')
+    map.addLayer(oceanRef);
+
+  if(type==='worldOcean'){
+    map.addLayer(worldOcean);
+    map.addLayer(oceanRef); // label laut
+  }
 }
   
 // MINIMAP
