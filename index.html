@@ -273,7 +273,7 @@ const baseLayers = [
 // STYLE KLASIFIKASI
 // ======================
 
-const banglaStyle = {
+const fungsiStyle = {
 
   "hunian":{
     fill:"#7B1FA2",
@@ -390,13 +390,13 @@ const banglaStyle = {
 // GEOJSON LAYER
 // ======================
 
-const banglaLayer = L.geoJSON(null,{
+const fungsiLayer = L.geoJSON(null,{
 
   // style polygon & line
   style:function(feature){
 
-    const fungsi = feature.properties.fungsi;
-    const s = banglaStyle[fungsi] || banglaStyle["Lainnya"];
+    const fungsi = feature.properties.FBANGLA;
+    const s = fungsiStyle[fungsi] || fungsiStyle["data lainnya"];
 
     return {
       color:s.outline,
@@ -409,8 +409,8 @@ const banglaLayer = L.geoJSON(null,{
   // style point
   pointToLayer:function(feature,latlng){
 
-    const jenis = feature.properties.fungsi;
-    const s = banglaStyle[jenis] || banglaStyle["Lainnya"];
+    const jenis = feature.properties.FBANGLA;
+    const s = fungsiStyle[jenis] || fungsiStyle["data lainnya"];
 
     return L.circleMarker(latlng,{
       radius:7,
@@ -457,7 +457,7 @@ fetch('Bangla_2025_PT.geojson')
 
 .then(data=>{
 
-  banglaLayer.addData(data);
+  fungsiLayer.addData(data);
 
 });
 
@@ -480,11 +480,11 @@ function togglebanglaLayer(el){
 
   if(el.checked){
 
-    map.addLayer(banglaLayer);
+    map.addLayer(fungsiLayer);
 
   } else {
 
-    map.removeLayer(banglaLayer);
+    map.removeLayer(fungsiLayer);
 
   }
 
@@ -492,7 +492,7 @@ function togglebanglaLayer(el){
 
 
 // tampil default
-banglaLayer.addTo(map);
+fungsiLayer.addTo(map);
 
 //End off layer part
   
@@ -635,7 +635,7 @@ function loadGeoJSON(){
 }
 
 // BASEMAP MENU
-layerList.innerHTML =
+layerList.innerHTML +=
   '<b>Basemap</b><br>' +
   '<input type="radio" name="bm" checked onclick="setBasemap(\'voyager\')"> Voyager<br>' +
   '<input type="radio" name="bm" onclick="setBasemap(\'osm\')"> OSM<br>' +
