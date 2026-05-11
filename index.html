@@ -222,6 +222,17 @@ const bathy = L.tileLayer(
   'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
   { attribution: '© OpenTopoMap' }
 );
+
+const oceanBase = L.tileLayer(
+'https://services.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}'
+);
+
+const oceanRef = L.tileLayer(
+'https://services.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}'
+);
+
+oceanBase.addTo(map);
+oceanRef.addTo(map);
   
   /*const bathy = L.tileLayer(
   'https://services.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
