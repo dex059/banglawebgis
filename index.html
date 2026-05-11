@@ -218,11 +218,17 @@ const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
 const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
 osm.addTo(map);
 
-const bathy = L.tileLayer(
+const topomap = L.tileLayer(
   'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
   { attribution: '© OpenTopoMap' }
 );
 
+const voyager = L.tileLayer(
+'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+{
+ attribution:'© CARTO'
+});
+  
 const oceanBase = L.tileLayer(
 'https://services.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}'
 );
@@ -234,10 +240,10 @@ const oceanRef = L.tileLayer(
 oceanBase.addTo(map);
 oceanRef.addTo(map);
   
-  /*const bathy = L.tileLayer(
+const worldOcean = L.tileLayer(
   'https://services.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
   { attribution: '© Esri Ocean Basemap' }
-);*/
+);
 
 // SCALE (lebih panjang)
 L.control.scale({
@@ -290,17 +296,23 @@ map.on(L.Draw.Event.CREATED, e=>{
 
   let info = note ? note+"<br>" : "";
 
-  if(layer instanceof L.Polyline){
-    let dist=0;
-    const pts = layer.getLatLngs();
-    for(let i=1;i<pts.length;i++) dist+=pts[i-1].distanceTo(pts[i]);
-    info += "Jarak: "+(dist/1000).toFixed(2)+" km";
+if(layer instanceof L.Polygon){
+  const area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
+
+  let luasText = "";
+
+  if(area < 10000){
+    luasText = area.toFixed(0) + " m²";
+  }
+  else if(area < 10000000){
+    luasText = (area/10000).toFixed(2) + " ha";
+  }
+  else{
+    luasText = (area/1000000).toFixed(2) + " km²";
   }
 
-  if(layer instanceof L.Polygon){
-    const area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
-    info += "Luas: "+(area/1000000).toFixed(2)+" km²";
-  }
+  info += "Luas: " + luasText;
+}
 
   layer.bindPopup(info).openPopup();
   drawnItems.addLayer(layer);
@@ -377,6 +389,11 @@ layerList.innerHTML =
   '<input type="radio" name="bm" checked onclick="setBasemap(\'osm\')"> OSM<br>' +
   '<input type="radio" name="bm" onclick="setBasemap(\'sat\')"> Satellite<br>' +
   '<input type="radio" name="bm" onclick="setBasemap(\'bathy\')"> Bathymetry<br>' +
+  '<input type="radio" name="bm" onclick="setBasemap(\'topomap\')"> TopoMap<br>' +
+  '<input type="radio" name="bm" onclick="setBasemap(\'voyager\')"> Voyager<br>' +
+  '<input type="radio" name="bm" onclick="setBasemap(\'oceanBase\')"> OceanBase<br>' +
+  '<input type="radio" name="bm" onclick="setBasemap(\'oceanRef\')"> OceanRef<br>' + 
+  '<input type="radio" name="bm" onclick="setBasemap(\'worldOcean\')"> WorldOcean<br>' +
   '<hr>' +
   '<b>Layer (coming soon)</b>';
 
